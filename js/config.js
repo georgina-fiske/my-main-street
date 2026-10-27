@@ -4,8 +4,8 @@
 window.CONFIG = {
   // ---- Supabase (public values only; safe to be in the front end) ----
   supabase: {
-    url: 'PASTE_SUPABASE_PROJECT_URL_HERE',      // e.g. https://abcdxyz.supabase.co
-    anonKey: 'PASTE_SUPABASE_ANON_PUBLIC_KEY_HERE'
+    url: 'https://zrhjvrcshvvekafocnlr.supabase.co',      // e.g. https://abcdxyz.supabase.co
+    anonKey: 'sb_publishable_wiCLPXeOi9XRP2X70tR8CQ_LVuMEkfM'
   },
 
   // ---- Names ----
