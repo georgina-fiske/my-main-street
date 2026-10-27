@@ -21,7 +21,9 @@ Plain HTML, CSS and JS. No build step. Data lives in Supabase. Hosting is Netlif
 
 ## Change the street, council, colours or shops
 
-Everything is in `js/config.js`.
+Names, colours, logo, shops and campaign ideas are all in `js/config.js`. Dark mode colours are at the top of `css/styles.css`. The logo file is `img/fruitbowl-logo-white.png`.
+
+To change the demo data (campaigns, prizes, workshops), edit `reset_demo()` in `sql/01_schema.sql` and run the file again.
 
 ## How it is locked
 

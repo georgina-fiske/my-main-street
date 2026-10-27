@@ -28,8 +28,7 @@ p{margin:0 0 10px}
 header{background:var(--brand,#560CC9);color:#FFFFFF;position:sticky;top:env(safe-area-inset-top,0px);z-index:20}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--brand,#560CC9)}
 .top{padding:16px 0 10px;display:flex;gap:14px;align-items:center}
-.fb{width:44px;height:44px;flex:0 0 auto}
-.fb-text{font-weight:800;color:#fff}
+
 .street{font-family:Montserrat,sans-serif;font-weight:500;font-size:15px;opacity:.9}
 .demo{display:inline-block;background:var(--sun);color:var(--on-sun);font-weight:700;font-size:13px;padding:3px 10px;border-radius:999px;margin-left:8px;vertical-align:middle}
 nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none}
@@ -79,8 +78,22 @@ details summary{cursor:pointer;font-weight:700;margin-top:12px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px}
 .card .ex{background:var(--euc-soft);border-radius:10px;padding:8px 10px;font-size:15px;flex:1}
 /* phone + pass */
-.phone{max-width:360px;margin:0 auto;border:10px solid var(--ink);border-radius:36px;padding:18px 14px;background:var(--surface);min-height:540px}
-.pass{background:var(--brand,#560CC9);color:#F4F8F6;border-radius:18px;padding:16px}
+.phone{max-width:360px;margin:0 auto;border:12px solid #12062B;border-radius:48px;background:var(--bg);overflow:hidden;min-height:640px}
+.appbar{background:var(--brand,#560CC9);color:#FFFFFF;padding:28px 18px 14px}
+.appbar small{display:block;font-size:12px;font-weight:500;opacity:.85}
+.appbar b{font-size:19px;font-weight:800}
+.phone-body{padding:16px;display:flex;flex-direction:column;gap:12px}
+.phone-body h2{font-size:21px}
+.wallet{background:#000000;color:#FFFFFF;padding:30px 14px 20px;min-height:616px}
+.wallet h3{font-size:24px;margin-bottom:12px}
+.stub{height:44px;background:#1C3A8A;border-radius:14px 14px 0 0;font-size:12px;font-weight:700;padding:10px 14px}
+.wallet .pass{margin-top:-8px}
+.dots{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.dot{width:22px;height:22px;border-radius:50%;border:2px solid #F9DE4B}
+.dot.f{background:#F9DE4B}
+.lbl{display:flex;justify-content:space-between;font-size:11px;opacity:.85;margin-top:12px}
+.val{display:flex;justify-content:space-between;font-size:20px;font-weight:800}
+.pass{background:var(--brand,#560CC9);color:#FFFFFF;border-radius:18px;padding:16px}
 .pass-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;opacity:.85}
 .pass-name{font-family:Montserrat,sans-serif;font-weight:800;font-size:26px;margin:6px 0 10px}
 .pass-big{font-family:Montserrat,sans-serif;font-weight:800;font-size:34px;line-height:1}
@@ -93,9 +106,11 @@ details summary{cursor:pointer;font-weight:700;margin-top:12px}
 .win p{margin:6px 0 0}
 .qr{display:flex;justify-content:center;margin:12px 0 6px}
 .qr img,.qr canvas{background:#fff;padding:8px;border-radius:8px}
-.voucher{border:3px dashed var(--euc);border-radius:14px;padding:12px 14px;margin-top:12px}
+.voucher{border:2px dashed #560CC9;background:var(--surface);border-radius:14px;padding:12px 14px}
+.voucher .btn{width:100%;margin-top:8px}
 .voucher.used{border-style:solid;border-color:var(--line);opacity:.75}
-.ticket{border:3px dashed var(--sun);border-radius:14px;padding:12px 14px;margin-top:12px;text-align:center}
+.ticket{border:2px dashed var(--sun);background:var(--sun-soft);border-radius:14px;padding:12px 14px}
+.ticket.thanks{border-color:#560CC9;background:var(--euc-soft)}
 /* desk */
 .next{background:var(--euc-soft);border-radius:14px;padding:14px 16px}
 .nextname{font-family:Montserrat,sans-serif;font-weight:800;font-size:32px;line-height:1.1}
@@ -123,32 +138,30 @@ th{font-size:13px;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:12px;font-weight:700;z-index:50;opacity:0;transition:opacity .2s;max-width:90vw;text-align:center}
 .toast.on{opacity:1}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
-
+.fb{width:44px;height:44px;flex:0 0 auto}
+.fb-text{font-weight:800;color:#fff}
 /* ---- added for the live version ---- */
 .skip{position:absolute;left:-999px;top:0;background:var(--sun);color:var(--on-sun);padding:10px 16px;z-index:60;font-weight:700}
 .skip:focus{left:8px;top:8px}
 main:focus{outline:none}
 nav a{flex:0 0 auto;color:#FFFFFF;font:700 15px Montserrat,sans-serif;padding:8px 14px;border-radius:999px;text-decoration:none;opacity:.85;display:inline-flex;align-items:center;min-height:44px}
 nav a[aria-current="page"]{background:var(--sun);color:var(--on-sun);opacity:1}
-.err{color:var(--red);font-weight:700;margin:8px 0 0}
+a.btn{text-decoration:none}
 .btn[disabled]{opacity:.4;cursor:not-allowed}
-.btn.seg-on{background:var(--euc);color:var(--on-euc)}
-.dots{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 4px}
-.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--sun)}
-.dot.on{background:var(--sun)}
 .foot{max-width:1180px;margin:0 auto;padding:16px 18px 40px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;color:var(--muted);font-size:15px}
 .foot p{margin:0}
-.prize:disabled{opacity:.35}
 dialog.dlg{border:0;border-radius:16px;padding:18px;width:min(92vw,420px);background:var(--surface);color:var(--ink)}
 dialog.dlg::backdrop{background:rgba(30,11,69,.6)}
 video.cam{width:100%;border-radius:12px;background:#000;max-height:50vh}
 .picklist{display:grid;gap:8px;margin:10px 0}
-.pass .qr{margin:8px 0 0}
-.codesmall{font-weight:700;letter-spacing:.06em;text-align:center}
-.marquee-qr svg{width:min(70vw,340px);height:auto}
+.err{color:var(--red);font-weight:700;margin:8px 0 0}
 @media print{
   body.printing header,body.printing .foot,body.printing nav,body.printing .toast{display:none!important}
   body.printing main>*:not(.printable){display:none!important}
   body.printing{background:#fff;color:#000}
   .noprint{display:none!important}
 }
+
+.toast.bad{background:var(--red);color:var(--on-red)}
+.howcard .qr svg{width:150px;height:150px}
+.marquee-qr svg{width:min(70vw,340px);height:min(70vw,340px)}

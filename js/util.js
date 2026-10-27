@@ -13,12 +13,20 @@
 
   U.date = (iso) => {
     const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(y, m - 1, d).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+  // "18:30" -> "6:30pm"
+  U.time = (t) => {
+    if (!t) return '';
+    let [h, mi] = String(t).split(':').map(Number);
+    const ap = h >= 12 ? 'pm' : 'am';
+    h = h % 12 || 12;
+    return h + (mi ? ':' + String(mi).padStart(2, '0') : '') + ap;
   };
   U.useBy = (spunAt) => {
     const d = new Date(spunAt || Date.now());
     d.setDate(d.getDate() + C.prizeUseDays);
-    return d.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+    return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
   U.stampTotal = (s) => Object.values(s.stamps || {}).reduce((a, b) => a + Number(b), 0);
@@ -44,22 +52,23 @@
   U.barcodeSvg = (text) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     try {
-      JsBarcode(svg, text, { format: 'CODE128', displayValue: true, height: 60, margin: 4, fontSize: 16 });
+      JsBarcode(svg, text, { format: 'CODE128', width: 2, height: 64, displayValue: false, background: '#FFFFFF', lineColor: '#1E0B45', margin: 10 });
     } catch (e) { return ''; }
     svg.setAttribute('role', 'img');
     return svg.outerHTML;
   };
+  // How the customer's code looks on the pass: QR code, number or barcode.
   U.codeBlock = (code, style) => {
     const e = U.esc(code);
     if (style === 'number') {
-      const digits = U.esc(String(code).replace(/^CMS-/, ''));
-      return `<div class="codebox"><div class="codenum">${digits}</div><div class="codesmall">Your number</div></div>`;
+      return `<div class="pass-num">${U.esc(String(code).replace(/^CMS-/, ''))}</div><div class="pass-code">Your number</div>`;
     }
-    if (style === 'barcode') return `<div class="codebox" role="img" aria-label="Barcode for ${e}">${U.barcodeSvg(code)}</div>`;
-    return `<div class="codebox" role="img" aria-label="QR code for ${e}">${U.qrSvg(code, 4)}</div><div class="codesmall">${e}</div>`;
+    if (style === 'barcode') {
+      return `<div class="qr" role="img" aria-label="Barcode for ${e}">${U.barcodeSvg(code)}</div><div class="pass-code">${e}</div>`;
+    }
+    return `<div class="qr" role="img" aria-label="QR code for ${e}">${U.qrSvg(code, 4)}</div><div class="pass-code">${e}</div>`;
   };
   U.styleName = (s) => ({ qr: 'QR code', number: 'Number', barcode: 'Barcode' }[s] || 'QR code');
-  U.styleWord = (s) => ({ qr: 'QR code', number: 'number', barcode: 'barcode' }[s] || 'QR code');
 
   // ---- toast ----
   let toastTimer;
@@ -67,9 +76,9 @@
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.classList.toggle('bad', !!bad);
-    t.classList.add('show');
+    t.classList.add('on');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+    toastTimer = setTimeout(() => t.classList.remove('on'), 3500);
   };
 
   // ---- dialog ----
@@ -89,32 +98,6 @@
   document.addEventListener('close', (e) => {
     if (e.target.id === 'dlg' && onClose) { const f = onClose; onClose = null; f(); }
   }, true);
-
-  // Ask for a 4-digit PIN. check(pin) returns an error string, or '' when done.
-  U.askPin = (title, hint, check) => {
-    const d = U.openDialog(
-      `<form method="dialog" id="pinform">
-        <h2>${U.esc(title)}</h2>
-        <p class="muted">${U.esc(hint)}</p>
-        <label for="pinin">Shop PIN</label>
-        <input id="pinin" class="pinfield" type="text" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}">
-        <p class="err" id="pinerr" role="alert"></p>
-        <div class="row" style="margin-top:12px">
-          <button class="btn" type="submit" value="ok">Use it</button>
-          <button class="btn ghost" type="button" id="pincancel">Cancel</button>
-        </div>
-      </form>`);
-    const form = d.querySelector('#pinform');
-    d.querySelector('#pincancel').onclick = U.closeDialog;
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const pin = d.querySelector('#pinin').value;
-      const msg = await check(pin);
-      if (msg) d.querySelector('#pinerr').textContent = msg;
-      else U.closeDialog();
-    };
-    setTimeout(() => d.querySelector('#pinin').focus(), 30);
-  };
 
   // ---- camera scanner ----
   // opts: {title, onCode(code) -> returns error text or '', list: [{label, code}] (optional)}
@@ -145,6 +128,7 @@
       const msg = await opts.onCode(code);
       if (msg) { err.textContent = msg; return false; }
       U.closeDialog();
+      if (opts.after) opts.after();
       return true;
     }
     d.querySelector('#camclose').onclick = U.closeDialog;

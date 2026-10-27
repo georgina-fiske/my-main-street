@@ -1,37 +1,45 @@
-// Screens and actions for the demo.
+// Screens and actions. Layout and wording follow the mockup (main-street-rewards.html).
 (function () {
-  const C = window.CONFIG, D = window.DB, U = window.U, esc = U.esc;
-  const root = document.getElementById('app');
+  const C = window.CONFIG, D = window.DB, U = window.U, esc = U.esc, money = U.money;
 
-  const TABS = [
-    ['start', 'Start here'], ['festival', 'Festival day'], ['vendor', 'Vendor'], ['customer', 'Customer'],
-    ['fruitbowl', 'Fruitbowl'], ['council', 'Council'], ['street', 'Street Association']
+  const VIEWS = [
+    { id: 'start', label: 'Start here' }, { id: 'activation', label: 'Festival day' }, { id: 'trader', label: 'Vendor' },
+    { id: 'customer', label: 'Customer' }, { id: 'fruitbowl', label: 'Fruitbowl' }, { id: 'council', label: 'Council' },
+    { id: 'street', label: 'Street Association' }
   ];
-  const ui = {
-    tab: 'start',
-    shop: C.shops[0].id,
-    desk: { code: null, last: null, err: '' },
-    vcode: null,        // customer scanned at the vendor counter
-    vErr: ''
-  };
+  const TRADERS = C.shops;
+  const HOME = C.council;
+  const WHO = { fruitbowl: 'Fruitbowl', council: 'Council', street: 'Street Association' };
+  const FROM = { fruitbowl: 'From Fruitbowl', council: 'From council', street: 'From the Street Association' };
+  const STYLE_NAME = { qr: 'QR code', number: 'Number', barcode: 'Barcode' };
 
-  // ---- small helpers ----
-  const S = () => D.state;
   const store = {
     get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } },
-    del: (k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
   };
-  const me = () => { const c = store.get('msr_code'); return c ? S().signups.find((s) => s.code === c) || null : null; };
-  const byCode = (code) => S().signups.find((s) => s.code === code);
-  const codeStyle = () => S().settings.code_style || 'qr';
-  const roleName = (r) => ({ fruitbowl: C.org, council: C.councilLabel, street: C.streetOrg }[r]);
-  const isLive = (c) => c.council === 'approved' || c.street === 'yes';
-  const liveCampaigns = () => S().campaigns.filter(isLive);
-  const shop = () => U.shopById(ui.shop);
-  const prizeClass = (p) => (p.value >= 100 ? 'red' : p.value === 0 ? 'yellow' : 'green');
-  const wonCount = (p) => S().signups.filter((s) => s.prize && Number(s.prize.id) === Number(p.id)).length;
-  const councilWorkshops = () => S().workshops.filter((w) => (w.councils || []).includes(C.council));
+  const S = {
+    view: 'start',
+    phoneCode: store.get('msr-code') || null,
+    trader: store.get('msr-trader') || TRADERS[0].id,
+    deskCode: '', lastAward: null, pinFor: null, scan: null
+  };
+  const root = document.getElementById('app');
+
+  // ---- data helpers (read from the shared database) ----
+  const st = () => D.state;
+  const signups = () => st().signups;
+  const byCode = (code) => signups().find((s) => s.code === code);
+  const prizeList = () => st().prizes.slice().sort((a, b) => a.value - b.value || a.id - b.id);
+  const given = (p) => signups().filter((s) => s.prize && Number(s.prize.id) === Number(p.id)).length;
+  const left = (p) => p.stock - given(p);
+  const tName = (id) => (TRADERS.find((t) => t.id === id) || {}).name || 'a shop';
+  const stampTotal = U.stampTotal;
+  const rewardsAvail = U.rewardsLeft;
+  const style = () => st().settings.code_style || 'qr';
+  const campList = () => st().campaigns;
+  const live = (c) => c.council === 'approved' || c.street === 'yes';
+  const wsList = () => st().workshops.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const bookedBy = (w, trader) => st().bookings.some((b) => Number(b.workshop) === Number(w.id) && b.trader === trader);
 
   async function run(name, args, okMsg) {
     const r = await D.rpc(name, args);
@@ -39,450 +47,328 @@
     else if (okMsg) U.toast(okMsg);
     return r;
   }
+  const normCode = (v) => {
+    let c = String(v || '').trim().toUpperCase();
+    if (c && !c.startsWith('CMS-')) c = 'CMS-' + c;
+    return c;
+  };
+
+  function totals() {
+    const all = signups(), spun = all.filter((s) => s.prize);
+    return {
+      signups: all.length, spun: spun.length,
+      spent: spun.reduce((a, s) => a + Number(s.prize.value || 0), 0),
+      used: spun.filter((s) => s.redeemed).length,
+      stamps: all.reduce((a, s) => a + stampTotal(s), 0),
+      draw: all.filter((s) => stampTotal(s) >= C.stampsForDraw).length
+    };
+  }
+  function statsBlock() {
+    const t = totals();
+    return `<div class="stats">
+      <div class="stat"><b>${t.signups}</b><span>sign-ups</span></div>
+      <div class="stat"><b>${t.stamps}</b><span>stamps given</span></div>
+      <div class="stat"><b>${t.spun}</b><span>prizes won</span></div>
+      <div class="stat"><b>${money(t.spent)}</b><span>prize value</span></div>
+      <div class="stat"><b>${t.used}</b><span>prizes used on Main Street</span></div>
+      <div class="stat"><b>${t.draw}</b><span>in the big draw</span></div></div>`;
+  }
 
   // ---- shared pieces ----
-  function explainer(what, who, tryIt) {
-    return `<section class="explainer" aria-label="About this screen">
-      <div><b>What it is</b><p>${what}</p></div>
-      <div><b>Who uses it</b><p>${who}</p></div>
-      <div><b>Try it</b><p>${tryIt}</p></div>
-    </section>`;
+  function intro(title, what, who, tryit) {
+    return `<div class="intro"><h2>${title}</h2><p>${what}</p><div class="intro-grid"><div><b>Who uses it</b><p>${who}</p></div><div><b>Try it</b><p>${tryit}</p></div></div></div>`;
   }
 
-  function liveNums() {
-    const all = S().signups;
-    const won = all.filter((s) => s.prize);
-    const nums = [
-      [all.length, 'Sign-ups'],
-      [all.reduce((a, s) => a + U.stampTotal(s), 0), 'Stamps given'],
-      [won.length, 'Prizes won'],
-      [U.money(won.reduce((a, s) => a + Number(s.prize.value || 0), 0)), 'Prize value'],
-      [all.filter((s) => s.redeemed).length, 'Prizes used'],
-      [all.filter((s) => U.stampTotal(s) >= C.stampsForDraw).length, 'In the big draw']
-    ];
-    return `<div class="nums" aria-label="Live numbers">${nums.map((n) => `<div class="num"><b>${n[0]}</b><span>${n[1]}</span></div>`).join('')}</div>`;
+  function ladder(c) {
+    const tin = Object.values(c.traders || {}).filter((t) => t.status === 'in').length;
+    const k = (v) => (v === 'approved' || v === 'yes' ? '' : v === 'declined' || v === 'no' ? 'no' : 'wait');
+    const w = (v) => (v === 'approved' || v === 'yes' ? 'backing it' : v === 'declined' || v === 'no' ? 'passed' : 'deciding');
+    return `<div class="ladder"><span class="tag ${k(c.council)}">Council: ${w(c.council)}</span><span class="tag ${k(c.street)}">Street: ${w(c.street)}</span>
+      <span class="tag ${live(c) ? '' : 'wait'}">${live(c) ? 'Live for vendors' : 'Not live yet'} · ${tin}/${TRADERS.length} vendors in</span></div>`;
+  }
+  function campCard(c, actions) {
+    return `<div class="camp"><div class="row" style="justify-content:space-between"><h3>${esc(c.title)}</h3><span class="tag">${FROM[c.posted_by || 'fruitbowl']}</span></div>
+      <div class="muted">${esc(c.month)}</div>${ladder(c)}<p>${esc(c.blurb)}</p>${c.street_extra ? `<p><b>Street extra:</b> ${esc(c.street_extra)}</p>` : ''}${actions || ''}</div>`;
   }
 
-  function signupForm() {
-    return `<form data-form="signup" novalidate>
-      <h3>Join the ${esc(C.festivalName)}</h3>
-      <label for="su-name">First name</label>
-      <input id="su-name" name="name" type="text" autocomplete="given-name" maxlength="40">
-      <label for="su-email">Email</label>
-      <input id="su-email" name="email" type="email" autocomplete="email" maxlength="120">
-      <p class="muted small" style="margin:.25rem 0 0">Demo: use a made-up email.</p>
-      <label for="su-pc">Postcode</label>
-      <input id="su-pc" name="postcode" type="text" inputmode="numeric" maxlength="4" autocomplete="postal-code">
-      <label class="check"><input type="checkbox" name="optin"> <span>Yes, send me news from local shops.</span></label>
-      <label class="check"><input type="checkbox" name="terms"> <span>I agree to the terms. (Needed)</span></label>
-      <button class="btn big" type="submit">Sign up</button>
-    </form>`;
-  }
-
-  function passCard(s) {
-    const total = U.stampTotal(s);
-    const dots = Array.from({ length: C.stampsForDraw }, (_, i) => `<span class="dot${i < total ? ' on' : ''}"></span>`).join('');
-    return `<div class="pass">
-      <div class="brandline">${esc(C.siteName)}</div>
-      <div class="who">${esc(s.name)}</div>
-      <div class="stamps" aria-label="${Math.min(total, 99)} of ${C.stampsForDraw} stamps">Stamps: ${total}/${C.stampsForDraw}</div>
-      <div class="dots" aria-hidden="true">${dots}</div>
-      ${U.codeBlock(s.code, codeStyle())}
-    </div>`;
-  }
-
-  function rewardsUnder(s) {
-    let out = '';
-    if (s.prize) {
-      const p = s.prize;
-      out += s.redeemed
-        ? `<div class="reward used"><b>${U.money(p.value)} ${esc(p.name)}</b><br>Used at ${esc(s.redeemed_at)}.</div>`
-        : `<div class="reward"><b>Festival prize: ${U.money(p.value)} ${esc(p.name)}</b><br>
-             Collect at ${esc(p.collect_at)}.
-             <button class="btn gold" type="button" data-act="pin-prize">Staff: tap to use this</button></div>`;
-    }
-    C.shops.forEach((sh) => {
-      const left = U.rewardsLeft(s, sh.id);
-      for (let i = 0; i < left; i++) {
-        out += `<div class="reward"><b>${C.stampsForReward}-stamp reward</b><br>Use it at ${esc(sh.name)} only.
-          <button class="btn gold" type="button" data-act="pin-reward" data-shop="${sh.id}">Staff: tap to use this</button></div>`;
-      }
-    });
-    if (U.stampTotal(s) >= C.stampsForDraw) out += `<div class="reward"><b>You're in the big draw!</b></div>`;
-    return out;
-  }
-
-  function banner(s) {
-    if (!s || !s.prize || s.redeemed) return '';
+  function winBanner(s) {
     const p = s.prize;
-    return `<div class="won-banner" role="status"><span class="big">You won! ${U.money(p.value)} ${esc(p.name)}</span>
-      Go to ${esc(p.collect_at)} to collect it. Show this screen. Use it by ${U.useBy(s.spun_at)}. We've emailed you a copy too.</div>`;
+    if (!p || s.redeemed) return '';
+    return `<div class="win" role="status"><b style="font-size:20px">You won!</b><div class="amt">${p.value ? money(p.value) : 'Gift'}</div><b>${esc(p.name)}</b>
+      <p>Go to <b>${esc(p.collect_at || 'any participating Main Street shop')}</b> to collect it. Show this screen.</p>
+      <p style="font-size:14px">Use it by ${U.useBy(s.spun_at)}. We've emailed you a copy too.</p></div>`;
   }
 
-  function phone(inner) {
-    return `<div class="phone"><div class="phone-screen">${inner}</div></div>`;
+  function redeemBox(key, title, value, used, usedAt) {
+    if (used) return `<div class="voucher used"><b>${esc(title)}</b><br><span class="muted">Used at ${esc(tName(usedAt))}</span></div>`;
+    const open = S.pinFor === key;
+    return `<div class="voucher"><b>${value ? money(value) + ' · ' : ''}${esc(title)}</b>
+      ${open
+        ? `<form data-form="pin" data-key="${key}" class="row" style="margin-top:10px;flex-wrap:nowrap"><input id="pin-in" name="pin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" aria-label="Shop PIN" style="flex:1 1 140px;min-width:120px;letter-spacing:.3em"><button class="btn" type="submit" style="flex:0 0 auto">Confirm</button></form>
+           <p class="muted" style="font-size:13px;margin:6px 0 0">Staff type their shop's 4-digit PIN. Demo: Main St Espresso is 1111.</p>`
+        : `<button class="btn sun" data-act="pin-open" data-key="${key}">Staff: tap to use this</button>`}</div>`;
   }
 
-  function phoneContent(intro) {
-    const s = me();
-    if (!s) return phone(signupForm());
-    return phone(`${banner(s)}
-      ${intro && !s.prize ? `<p class="ok">You're in! Now get in line for the wheel. When you reach the wheel, show this screen. Staff will scan it.</p>` : ''}
-      ${passCard(s)}
-      ${rewardsUnder(s)}
-      <p class="small muted" style="margin-top:12px"><a href="#" data-act="forget">Not you? Start again.</a></p>`);
+  const THANKS = `<div class="ticket thanks"><b>Thanks for joining us!</b><br><span class="muted">We're so excited to bring you back to your Main Street.</span></div>`;
+  function passCard(s, withCode) {
+    return `<div class="pass"><div class="pass-top"><span>${esc(C.siteName)}</span><span>Croydon</span></div><div class="pass-name">${esc(s.name)}</div>${withCode ? U.codeBlock(s.code, style()) : ''}</div>`;
+  }
+  function phoneWrap(inner) {
+    return `<div class="phone"><div class="appbar"><small>${esc(C.streetName)}</small><b>${esc(C.siteName)}</b></div><div class="phone-body">${inner}</div></div>`;
   }
 
-  function qrBox(text) { return `<div class="qrbox" role="img" aria-label="QR code">${U.qrSvg(text, 4)}</div>`; }
-
-  function fmtWorkshopWhere(w) { return w.format === 'Online' ? 'Online' : esc(w.place); }
-
-  // ---- campaigns ----
-  function postForm(role) {
-    return `<form data-form="campaign" data-role="${role}" class="card" novalidate>
-      <h3>Post a campaign</h3>
-      <label for="cf-${role}-title">Name</label>
-      <input id="cf-${role}-title" name="title" type="text" maxlength="80">
-      <label for="cf-${role}-month">When</label>
-      <input id="cf-${role}-month" name="month" type="text" maxlength="40" placeholder="e.g. March 2027">
-      <label for="cf-${role}-blurb">The idea</label>
-      <textarea id="cf-${role}-blurb" name="blurb" maxlength="300"></textarea>
-      <div class="row" style="margin-top:12px">
-        <button class="btn" type="submit">${role === 'fruitbowl' ? 'Send to council and the street' : 'Post and send to vendors'}</button>
-      </div>
-      <label for="idea-${role}">Need an idea?</label>
-      <div class="row">
-        <select id="idea-${role}" style="flex:1;min-width:200px">
-          ${C.ideas.map((x, i) => `<option value="${i}">${esc(x.title)} (${esc(x.month)})</option>`).join('')}
-        </select>
-        <button class="btn ghost" type="button" data-act="use-idea" data-role="${role}">Use this</button>
-      </div>
-    </form>`;
+  // Festival day phone: sign-up, then the code, then the win, then "used".
+  function festivalPhone(s) {
+    const p = s.prize;
+    if (!p) return `<div class="ticket"><h2>You're in! Now get in line for the wheel.</h2><span class="muted">When you reach the wheel, show this screen. Staff will scan it.</span></div>${passCard(s, true)}`;
+    if (s.redeemed) return `${passCard(s, false)}${redeemBox('prize', 'Festival prize: ' + p.name, p.value, true, s.redeemed_at)}${THANKS}`;
+    if (S.pinFor === 'prize') return `${passCard(s, false)}${redeemBox('prize', 'Festival prize: ' + p.name, p.value, false)}`;
+    return `${winBanner(s)}${THANKS}${redeemBox('prize', 'Festival prize: ' + p.name, p.value, false)}`;
   }
 
-  function tagFor(who, v) {
-    const text = v === 'approved' || v === 'yes' ? 'backing it' : v === 'declined' || v === 'no' ? 'passed' : 'deciding';
-    const cls = text === 'backing it' ? 'yes' : text === 'passed' ? 'no' : '';
-    return `<span class="tag ${cls}">${who}: ${text}</span>`;
+  // Customer screen: the pass as it looks in their phone's Wallet.
+  function walletView(s) {
+    const total = stampTotal(s), n = Math.min(total, C.stampsForDraw);
+    return `<div class="phone"><div class="wallet"><h3>Wallet</h3><div class="stub">Bank card</div>
+      <div class="pass"><div class="pass-top" style="opacity:1;font-size:17px;font-weight:800"><span>${esc(C.siteName)}</span><span style="font-size:11px;font-weight:500">Croydon</span></div>
+      <div class="lbl"><span>NAME</span><span>STAMPS</span></div><div class="val"><span>${esc(s.name)}</span><span>${n}/${C.stampsForDraw}</span></div>
+      <div class="dots" aria-hidden="true">${Array.from({ length: C.stampsForDraw }, (_, i) => `<span class="dot ${i < n ? 'f' : ''}"></span>`).join('')}</div>
+      <div style="font-size:12px;opacity:.85">${total >= C.stampsForDraw ? "You're in the big draw!" : (C.stampsForDraw - total) + ' more for the big draw'}</div>
+      ${U.codeBlock(s.code, style())}</div></div></div>`;
+  }
+  function readyToUse(me) {
+    const p = me.prize;
+    const rw = TRADERS.filter((t) => rewardsAvail(me, t.id) > 0);
+    const items = (p && !me.redeemed ? redeemBox('prize', 'Festival prize: ' + p.name, p.value, false) : '')
+      + rw.map((t) => redeemBox('reward-' + t.id, `${C.stampsForReward}-stamp reward from ${t.name}`, null, false)).join('');
+    return items ? `<div class="panel gap"><h3>Ready to use</h3><div class="grid" style="gap:10px;margin-top:8px">${items}</div></div>` : '';
   }
 
-  function campaignCard(c, role) {
-    const inCount = Object.values(c.traders || {}).filter((t) => t.status === 'in').length;
-    let actions = '';
-    if (role === 'council' && c.council === 'pending') {
-      actions = `<div class="row" style="margin-top:8px">
-        <button class="btn" data-act="council-back" data-id="${c.id}">Back it and send to vendors</button>
-        <button class="btn ghost" data-act="council-no" data-id="${c.id}">Not for us</button></div>`;
-    }
-    if (role === 'street' && c.street === 'pending') {
-      actions = `<label for="extra-${c.id}">Street extra (optional)</label>
-        <input id="extra-${c.id}" type="text" maxlength="200" placeholder="e.g. Live music on Saturday">
-        <div class="row" style="margin-top:8px">
-          <button class="btn" data-act="street-back" data-id="${c.id}">Back it and send to vendors</button>
-          <button class="btn ghost" data-act="street-no" data-id="${c.id}">Not for us</button></div>`;
-    }
-    if (role === 'street' && c.street === 'yes') {
-      actions = `<h3 style="margin-top:12px">Which vendors are in</h3>
-        <div class="tablewrap"><table><thead><tr><th>Shop</th><th>Answer</th></tr></thead><tbody>
-        ${C.shops.map((sh) => {
-          const t = (c.traders || {})[sh.id];
-          const v = t ? t.status : 'none';
-          return `<tr><td>${esc(sh.name)}${t && t.offer ? `<br><span class="muted small">${esc(t.offer)}</span>` : ''}</td>
-            <td><label class="sr" for="v-${c.id}-${sh.id}" style="position:absolute;left:-999px">Answer for ${esc(sh.name)}</label>
-            <select id="v-${c.id}-${sh.id}" data-change="trader-sel" data-id="${c.id}" data-shop="${sh.id}">
-              <option value="none"${v === 'none' ? ' selected' : ''}>No answer</option>
-              <option value="in"${v === 'in' ? ' selected' : ''}>In</option>
-              <option value="out"${v === 'out' ? ' selected' : ''}>Out</option></select></td></tr>`;
-        }).join('')}</tbody></table></div>`;
-    }
-    return `<article class="card">
-      <h3>${esc(c.title)}</h3>
-      <div class="muted">${esc(c.month)} · From ${esc(roleName(c.posted_by))}</div>
-      <p style="margin-top:.5rem">${esc(c.blurb)}</p>
-      ${c.street_extra ? `<p><b>Street extra:</b> ${esc(c.street_extra)}</p>` : ''}
-      <div class="tags">${tagFor('Council', c.council)}${tagFor('Street', c.street)}
-        ${isLive(c) ? `<span class="tag live">Live for vendors · ${inCount}/${C.shops.length} vendors in</span>` : ''}</div>
-      ${actions}
-    </article>`;
+  function campaignForm(level) {
+    const btn = level === 'fruitbowl' ? 'Send to council and the street' : 'Send to our vendors';
+    return `<form data-form="newcamp" data-level="${level}">
+      <label for="ct-${level}">Name</label><input id="ct-${level}" name="title" required placeholder="Late Night Thursdays">
+      <label for="cm-${level}">When</label><input id="cm-${level}" name="month" required placeholder="December 2026">
+      <label for="cb-${level}">The idea</label><textarea id="cb-${level}" name="blurb" required placeholder="What vendors do and what customers get"></textarea>
+      <p style="margin-top:14px"><button class="btn" type="submit">${btn}</button></p></form>
+      <details><summary>Need an idea? Pick one to fill the form</summary><ul class="list">${C.ideas.map((x, i) => `<li class="row" style="justify-content:space-between;flex-wrap:nowrap"><span><b>${esc(x.title)}</b> <span class="muted">· ${esc(x.month)}</span><br><span class="muted">${esc(x.blurb)}</span></span><button type="button" class="btn ghost small" data-act="use-idea" data-level="${level}" data-i="${i}">Use this</button></li>`).join('')}</ul></details>`;
   }
 
-  function campaignList(role) {
-    const list = S().campaigns;
-    return `<section><h2>Campaigns</h2><div class="grid cards">${list.map((c) => campaignCard(c, role)).join('') || '<p>No campaigns yet.</p>'}</div></section>`;
+  function prizesPanel(level) {
+    return `<div class="panel gap"><h3>Prizes</h3><p class="muted">Fruitbowl, council and the Street Association can all add prizes. They show on the festival desk straight away.</p>
+      <div class="table-wrap"><table><thead><tr><th>Prize</th><th>Value</th><th>Where to collect</th><th>Won</th><th>Stock</th><th>Added by</th><th></th></tr></thead><tbody>
+      ${prizeList().map((p) => {
+        const g = given(p);
+        return `<tr><td>${esc(p.name)}</td><td>${p.value ? money(p.value) : 'Gift'}</td><td>${esc(p.collect_at || 'Any shop')}</td><td>${g}</td><td>${p.stock}</td><td>${esc(WHO[p.added_by] || '')}</td>
+          <td><button class="btn ghost small" data-act="stock" data-id="${p.id}">+10</button> ${g ? '' : `<button class="btn ghost small" data-act="del-prize" data-id="${p.id}">Remove</button>`}</td></tr>`;
+      }).join('')}</tbody></table></div>
+      <form data-form="prize" data-level="${level}" class="row" style="margin-top:12px;align-items:flex-end">
+        <div style="flex:2;min-width:160px"><label for="pn-${level}">New prize</label><input id="pn-${level}" name="name" required placeholder="Free pizza slice"></div>
+        <div style="flex:1;min-width:90px"><label for="pv-${level}">Value $</label><input id="pv-${level}" name="value" inputmode="numeric" required placeholder="10"></div>
+        <div style="flex:2;min-width:160px"><label for="pw-${level}">Where to collect</label><input id="pw-${level}" name="where" required placeholder="Main St Espresso"></div>
+        <div style="flex:1;min-width:90px"><label for="pq-${level}">How many</label><input id="pq-${level}" name="stock" inputmode="numeric" required placeholder="20"></div>
+        <button class="btn" type="submit">Add prize</button></form></div>`;
   }
 
-  // ---- prizes ----
-  function prizesPanel(role) {
-    const rows = S().prizes.map((p) => {
-      const won = wonCount(p);
-      return `<tr>
-        <td><span class="dot-pill ${prizeClass(p)}"></span>${esc(p.name)}</td>
-        <td>${U.money(p.value)}</td><td>${won}</td><td>${p.stock}</td>
-        <td>${esc(roleName(p.added_by))}</td><td>${esc(p.collect_at)}</td>
-        <td><button class="btn small ghost" data-act="stock" data-id="${p.id}" aria-label="Add 10 ${esc(p.name)}">+10</button></td>
-        <td>${won === 0 ? `<button class="btn small ghost" data-act="rm-prize" data-id="${p.id}" aria-label="Remove ${esc(p.name)}">Remove</button>` : ''}</td></tr>`;
-    }).join('');
-    return `<section><h2>Prizes</h2>
-      <p class="muted">Desk colours: $100 or more is red. $0 gifts are yellow. The rest are green.</p>
-      <div class="tablewrap"><table><thead><tr><th>Prize</th><th>Value</th><th>Won</th><th>Stock</th><th>Added by</th><th>Where to collect</th><th></th><th></th></tr></thead>
-      <tbody>${rows}</tbody></table></div>
-      <form data-form="prize" data-role="${role}" class="card" style="margin-top:12px" novalidate>
-        <h3>Add a prize</h3>
-        <div class="grid cards">
-          <div><label for="pz-${role}-name">Prize name</label><input id="pz-${role}-name" name="name" type="text" maxlength="60"></div>
-          <div><label for="pz-${role}-value">Value ($)</label><input id="pz-${role}-value" name="value" type="number" min="0" max="10000" inputmode="numeric"></div>
-          <div><label for="pz-${role}-where">Where to collect</label><input id="pz-${role}-where" name="where" type="text" maxlength="80"></div>
-          <div><label for="pz-${role}-n">How many</label><input id="pz-${role}-n" name="stock" type="number" min="1" max="10000" inputmode="numeric"></div>
-        </div>
-        <div class="row" style="margin-top:12px"><button class="btn" type="submit">Add prize</button></div>
-      </form></section>`;
-  }
-
-  // ---- workshops ----
-  function workshopTable(list, withBooked) {
-    if (!list.length) return '<p>No workshops yet.</p>';
-    return `<div class="tablewrap"><table><thead><tr><th>Workshop</th><th>Date</th><th>Time</th><th>Format</th><th>Where</th>${withBooked ? '<th>Sent to</th><th>Booked</th>' : ''}</tr></thead><tbody>
+  function wsTable(list, withBook) {
+    if (!list.length) return '<p class="muted">No workshops yet.</p>';
+    return `<div class="table-wrap"><table><thead><tr><th>Workshop</th><th>When</th><th>Format</th><th>Where</th>${withBook ? '<th></th>' : '<th>Sent to</th><th>Booked</th>'}</tr></thead><tbody>
       ${list.map((w) => {
-        const b = S().bookings.filter((x) => Number(x.workshop) === Number(w.id));
-        return `<tr><td>${esc(w.name)}</td><td>${U.date(w.date)}</td><td>${esc(w.time)}</td><td>${esc(w.format)}</td><td>${fmtWorkshopWhere(w)}</td>
-          ${withBooked ? `<td>${esc((w.councils || []).join(', '))}</td><td>${b.length}${b.length ? `<br><span class="muted small">${esc(b.map((x) => U.shopName(x.trader)).join(', '))}</span>` : ''}</td>` : ''}</tr>`;
+        const n = st().bookings.filter((b) => Number(b.workshop) === Number(w.id)).length;
+        return `<tr><td>${esc(w.name)}</td><td>${U.date(w.date)} ${U.time(w.time)}</td><td><span class="tag ${w.format === 'Online' ? '' : 'wait'}">${esc(w.format)}</span></td><td>${esc(w.place)}</td>
+          ${withBook
+            ? `<td>${bookedBy(w, S.trader) ? '<span class="tag">Booked</span>' : `<button class="btn small" data-act="book" data-w="${w.id}">Book</button>`}</td>`
+            : `<td>${esc((w.councils || []).join(', '))}</td><td>${n}</td>`}</tr>`;
       }).join('')}</tbody></table></div>`;
   }
 
-  // ======== SCREENS ========
-  function screenStart() {
-    const cards = [
-      ['festival', 'Festival day', 'See sign-up, the prize desk and the shop PIN, side by side.', 'Sign up, then spin the wheel on the desk.'],
-      ['vendor', 'Vendor', 'What a shop sees: numbers, PIN, campaigns and workshops.', 'Say "I\'m in" to a campaign.'],
-      ['customer', 'Customer', 'The pass on a phone. Get stamps and see rewards.', 'Tap a shop to get a stamp.'],
-      ['fruitbowl', 'Fruitbowl', 'Post campaigns and workshops. Set how codes look.', 'Send a workshop to Maroondah only.'],
-      ['council', 'Council', 'Back campaigns, add prizes, see workshops.', 'Back a campaign so shops can join.'],
-      ['street', 'Street Association', 'Back campaigns and pick which shops are in.', 'Add a street extra and back a campaign.']
-    ];
-    return `<div class="screen">
-      <section class="card">
-        <h1>${esc(C.siteName)}</h1>
-        <p><b>The idea.</b> One site for a whole shopping street. ${esc(C.org)} posts campaigns, like Christmas. The council or the street association backs a campaign. Then it goes straight to the shops. Shops tap "I'm in."</p>
-        <p><b>How customers get a stamp.</b> After paying, they scan the QR code on the counter, or tap the sticker. It takes about 5 seconds. The shop does nothing. It works the same way as StampMe.</p>
-        <p><b>How customers win.</b> 6 stamps at one shop gives that shop's reward. 10 stamps anywhere gives an entry in the big draw.</p>
-        <p><b>Later:</b> link your bank card so stamps land automatically when you pay.</p>
-        <p class="who-box"><b>This is a demo.</b> Shops and prizes are made up.</p>
-      </section>
-      <div class="grid cards">${cards.map((c) => `<article class="card startcard">
-        <h3>${c[1]}</h3><p>${c[2]}</p><p class="muted"><b>Example:</b> ${c[3]}</p>
-        <a class="btn" href="#/${c[0]}">Open</a></article>`).join('')}</div>
-    </div>`;
+  // ---- views ----
+  function card(go, title, what, ex) {
+    return `<div class="card"><h3>${title}</h3><p>${what}</p><div class="ex"><b>Example:</b> ${ex}</div><a class="btn small" href="#${go}">Open ${title}</a></div>`;
+  }
+  function vStart() {
+    return `<div class="intro"><h2>What this is</h2>
+      <p>One website for ${esc(C.streetName)}. Shoppers collect stamps and win prizes. Shops join campaigns with one tap. Council and the Street Association see what's working.</p>
+      <p><b>How customers get a stamp:</b> after paying, they scan the QR code on the counter or tap their phone on the sticker. It takes 5 seconds and the vendor does nothing. This is the same way StampMe works.</p>
+      <p><b>How customers win:</b> ${C.stampsForReward} stamps at one shop gets that shop's reward. ${C.stampsForDraw} anywhere gets you into the big draw.</p>
+      <p><b>Later:</b> customers link their bank card once, and stamps land automatically when they pay.</p>
+      <p><b>What vendors do:</b> almost nothing. Customers tap the counter sticker for stamps. To use a prize, staff type their shop PIN on the customer's phone.</p>
+      <p class="muted">This is a demo to click through. It's not live yet. The shops and prizes are made up.</p></div>
+      <h2 style="margin:8px 0 12px">Each screen, explained</h2>
+      <div class="cards">
+      ${card('activation', 'Festival day', `${esc(C.festivalName)} launch: the customer's phone, our desk and the vendor, side by side.`, 'Sam signs up, spins, wins a free coffee, and uses it at Main St Espresso that night.')}
+      ${card('trader', 'Vendor', "Each shop's screen. Built to need as little as possible from busy staff.", 'Gelato Lane prints its counter sticker, joins Christmas, and books a workshop.')}
+      ${card('customer', 'Customer', "The shopper's pass: stamps, prizes, rewards and what's on.", 'Sam has 4 of 10 stamps toward the big draw.')}
+      ${card('fruitbowl', 'Fruitbowl', 'Plans the year, adds prizes, and runs workshops for each council.', 'Fruitbowl sends an online workshop to Maroondah and Knox.')}
+      ${card('council', 'Council', 'Backs campaigns, makes its own, adds prizes, and sees results.', 'Council posts its own campaign for a local event.')}
+      ${card('street', 'Street Association', 'Backs campaigns, makes its own, adds prizes, and sees which shops are in.', 'The association adds Santa on a banana lounge on Saturdays.')}
+      </div>`;
   }
 
-  function screenFestival() {
-    const st = codeStyle();
-    const s = ui.desk.code ? byCode(ui.desk.code) : null;
-    const last = ui.desk.last ? byCode(ui.desk.last) : null;
-    const prizes = S().prizes;
-    const desk = `
-      <button class="btn big" type="button" data-act="desk-scan">Scan their code</button>
-      <form data-form="deskscan" style="margin-top:10px">
-        <label for="desk-scan">Scanner box</label>
-        <input id="desk-scan" name="code" type="text" autocomplete="off" placeholder="Scan, or type the number">
-        <p class="muted small">A USB or Bluetooth scanner can type here. Press Enter.</p>
-      </form>
-      ${ui.desk.err ? `<p class="err" role="alert">${esc(ui.desk.err)}</p>` : ''}
-      <div class="deskstate">${s ? `At the wheel: ${esc(s.name)} · ${esc(s.code)}` : 'Scan a code to start.'}</div>
-      ${prizes.map((p) => `<button class="prizebtn ${prizeClass(p)}" data-act="award" data-id="${p.id}" ${!s || p.stock < 1 ? 'disabled' : ''}>
-        <span class="v">${U.money(p.value)}</span> ${esc(p.name)}<br><span class="small">${p.stock} left</span></button>`).join('')}
-      ${last && last.prize ? `<div class="result" role="status"><b>${esc(last.name)} won ${esc(last.prize.name)}.</b>
-        Collect at ${esc(last.prize.collect_at)}. Their phone shows it now.
-        ${last.redeemed ? `<br><span class="muted">Already used, so it can't be undone.</span>` : ` · <a href="#" data-act="undo" data-code="${esc(last.code)}">Undo</a>`}</div>` : ''}
-      <p class="muted small">Phones show the code as a ${U.styleWord(st)}. Change this on the Fruitbowl screen.</p>`;
-    const marquee = `<section class="card marquee">
-      <h2>Scan to join the ${esc(C.festivalName)}</h2>
-      ${qrBox(location.origin + '/#/festival')}
-      <p class="no-print"><button class="btn gold" type="button" data-act="print-marquee">Print this</button></p></section>`;
-    return `<div class="screen">
-      <h1>Festival day</h1>
-      ${explainer(
-        `The ${esc(C.festivalName)} launch. People sign up, then spin the wheel for a prize.`,
-        'Customers on their phones. Fruitbowl staff at the wheel. Shops, to use prizes.',
-        'Sign up in box 1. Then pick yourself in box 2.')}
-      ${liveNums()}
+  function vActivation() {
+    const me = S.phoneCode && byCode(S.phoneCode);
+    const phone = me
+      ? festivalPhone(me)
+      : `<h2>Win something on Main Street</h2><p class="muted">Sign up, spin the wheel, and use your prize in Croydon today.</p>
+        <form data-form="signup">
+          <label for="f-name">First name</label><input id="f-name" name="name" required autocomplete="given-name" maxlength="40">
+          <label for="f-email">Email</label><input id="f-email" name="email" type="email" required autocomplete="email" maxlength="120">
+          <p class="muted" style="font-size:13px;margin:4px 0 0">Demo: use a made-up email.</p>
+          <label for="f-post">Postcode</label><input id="f-post" name="postcode" inputmode="numeric" maxlength="4" required autocomplete="postal-code">
+          <label class="check"><input type="checkbox" name="optin" checked> Send me news and offers from ${esc(C.streetName)}</label>
+          <label class="check"><input type="checkbox" name="terms" required> I agree to the terms and privacy note</label>
+          <p style="margin-top:14px"><button class="btn sun" type="submit" style="width:100%">Sign up and get my spin</button></p></form>`;
+    const cur = S.deskCode ? byCode(S.deskCode) : null;
+    const desk = `<p><b>When someone reaches the wheel, scan their phone.</b></p>
+      <button class="btn sun big" data-act="desk-scan">Scan their code</button>
+      <form data-form="desk" style="margin-top:10px"><label for="desk-in">Scanner box</label><input id="desk-in" name="code" placeholder="Scan, or type the number" autocomplete="off"></form>
+      <p class="muted" style="font-size:14px;margin-top:6px">Phones show the code as a <b>${STYLE_NAME[style()]}</b>. Change this on the Fruitbowl screen.</p>
+      ${cur
+        ? `<div class="next gap"><div class="muted">At the wheel</div><div class="nextname">${esc(cur.name)}</div><div>${esc(cur.code)}</div>
+            ${cur.prize ? `<span class="tag no">Already won: ${esc(cur.prize.name)}</span>` : ''}</div>
+            ${cur.prize ? '' : `<p style="margin:12px 0 0"><b>Tap the prize the wheel landed on.</b> That's it.</p>`}`
+        : S.deskCode
+          ? `<div class="next gap">No sign-up with code ${esc(S.deskCode)}. Check their screen and scan again.</div>`
+          : `<div class="next gap"><span class="muted">Scan someone to start. The prize buttons light up once you do.</span></div>`}
+      <div class="prizes">${prizeList().map((p) => {
+        const l = left(p), off = !cur || cur.prize || l <= 0;
+        return `<button class="prize ${p.value >= 100 ? 'hero' : p.value === 0 ? 'filler' : ''}" data-act="award" data-code="${cur ? esc(cur.code) : ''}" data-prize="${p.id}" ${off ? 'disabled' : ''}><span class="v">${p.value ? money(p.value) : 'Gift'}</span><span class="n">${esc(p.name)}</span><span class="left">${l} left</span></button>`;
+      }).join('')}</div>
+      ${S.lastAward ? `<div class="who">${esc(S.lastAward.name)} won <b>${esc(S.lastAward.prize)}</b>.${S.lastAward.where ? ' Collect at <b>' + esc(S.lastAward.where) + '</b>.' : ''} Their phone shows it now. <button class="btn ghost small" data-act="undo">Undo</button></div>` : ''}`;
+    return `${intro('Festival day', `How ${esc(C.festivalName)} works on the day. Three people, three screens. Follow 1, 2, 3.`, 'The customer on their phone, our team at the marquee desk, and the vendor on Main Street.', 'Sign up on the phone. At the desk, tap Scan their code and pick yourself. Tap a prize. Then on the phone, tap Staff: tap to use this and enter 1111.')}
+      ${statsBlock()}
       <div class="grid three">
-        <section class="card"><div class="step"><i>1</i><h2>What the customer sees</h2></div>${phoneContent(true)}</section>
-        <section class="card"><div class="step"><i>2</i><h2>What our team sees</h2></div><p class="muted">The prize desk at the wheel. People line up in person. There is no queue in the app.</p>${desk}</section>
-        <section class="card"><div class="step"><i>3</i><h2>What the vendor does</h2></div>
-          <div class="card tint"><h3>The easy way</h3><p>Staff type the shop's 4-digit PIN on the customer's phone. That marks the prize as used.</p></div>
-          <div class="card tint" style="margin-top:12px"><h3>Busy counters</h3><p>Use the Scan button, or a barcode scanner on the POS tablet.</p></div>
-          <p style="margin-top:12px"><a class="btn" href="#/vendor">Go to the Vendor screen</a></p></section>
+        <section aria-label="Customer phone"><div class="stephead"><span class="num">1</span><div><h3>What the customer sees</h3><p class="muted">On their own phone, after scanning the marquee QR code.</p></div></div>${phoneWrap(phone)}${me ? `<p style="text-align:center;margin-top:12px"><button class="btn ghost small" data-act="reset-phone">Sign up someone else</button></p>` : ''}</section>
+        <section class="panel" aria-label="Prize desk"><div class="stephead"><span class="num">2</span><div><h3>What our team sees</h3><p class="muted">At the wheel. People line up in person. Staff scan each phone, then tap the prize the wheel landed on.</p></div></div>${desk}</section>
+        <section class="panel" aria-label="Vendor"><div class="stephead"><span class="num">3</span><div><h3>What the vendor does</h3><p class="muted">At their counter on Main Street, later that day.</p></div></div>
+          <div class="howcard"><h3>The easy way</h3><p>The customer shows their prize. Staff tap <b>Staff: tap to use this</b> on the customer's phone and type the shop's 4-digit PIN. Done. No device, no app.</p></div>
+          <div class="howcard gap"><h3>Busy counter?</h3><p>Use the <b>Scan</b> button on the Vendor screen, or plug a barcode scanner into the POS tablet. It reads the customer's pass and shows one big button.</p>
+          <a class="btn small" href="#trader">Open the Vendor screen</a></div></section>
       </div>
-      ${marquee}
-    </div>`;
+      <div class="panel gap printable"><h3>Marquee QR code</h3><p class="muted">Print this big for the backdrop and the desk. It opens the sign-up page.</p>
+        <div class="qr marquee-qr" role="img" aria-label="QR code for the sign-up page" style="background:#fff;border-radius:12px;padding:12px;width:fit-content;margin:12px auto">${U.qrSvg(location.origin + '/#activation', 6)}</div>
+        <p class="noprint" style="text-align:center"><button class="btn small" data-act="print-marquee">Print this</button></p></div>`;
   }
 
-  function vendorScanCard() {
-    const sh = shop();
-    const s = ui.vcode ? byCode(ui.vcode) : null;
-    let card = '';
-    if (s) {
-      const left = U.rewardsLeft(s, sh.id);
-      card = `<div class="result"><h3>${esc(s.name)} · ${esc(s.code)}</h3>
-        <p>Stamps here: <b>${U.stampsAt(s, sh.id)}</b> · Stamps overall: <b>${U.stampTotal(s)}</b></p>
-        <div class="grid cards">
-          ${s.prize && !s.redeemed ? `<button class="btn big gold" data-act="v-prize">Use festival prize (${esc(s.prize.name)})</button>` : ''}
-          ${s.prize && s.redeemed ? `<p class="muted">Festival prize used at ${esc(s.redeemed_at)}.</p>` : ''}
-          ${left > 0 ? `<button class="btn big gold" data-act="v-reward">Use ${C.stampsForReward}-stamp reward</button>` : ''}
+  function vTrader() {
+    const t = TRADERS.find((x) => x.id === S.trader) || TRADERS[0];
+    const camps = campList().filter(live);
+    const used = signups().filter((s) => s.redeemed && s.redeemed_at === t.id);
+    const stamped = signups().reduce((a, s) => a + U.stampsAt(s, t.id), 0);
+    const sc = S.scan && byCode(S.scan);
+    let result = '';
+    if (S.scan && !sc) result = `<div class="result">No customer with code ${esc(S.scan)}. Check the code on their pass.</div>`;
+    if (sc) {
+      const p = sc.prize, rw = rewardsAvail(sc, t.id);
+      result = `<div class="result"><h3>${esc(sc.name)} · ${esc(sc.code)}</h3><p class="muted">${U.stampsAt(sc, t.id)} stamps here · ${stampTotal(sc)}/${C.stampsForDraw} overall</p>
+        <div class="grid" style="gap:8px">
+          ${p && !sc.redeemed ? `<button class="btn sun big" data-act="v-use-prize">Use festival prize: ${esc(p.name)}</button>` : ''}
+          ${rw > 0 ? `<button class="btn sun big" data-act="v-use-reward">Use ${C.stampsForReward}-stamp reward</button>` : ''}
           <button class="btn big" data-act="v-stamp">Give a stamp</button>
-          <button class="btn big ghost" data-act="v-next">Next customer</button></div></div>`;
+          <button class="btn ghost small" data-act="v-clear">Next customer</button></div></div>`;
     }
-    return `<section class="card"><h2>Busy counter? Scan instead.</h2>
-      <button class="btn big" type="button" data-act="v-scan">Scan a customer's pass</button>
-      <form data-form="vscan" style="margin-top:10px">
-        <label for="v-scanbox">Scanner box</label>
-        <input id="v-scanbox" name="code" type="text" autocomplete="off" placeholder="Scan, or type the number">
-        <p class="muted small">A USB or Bluetooth barcode scanner can type here. It sends when it presses Enter.</p>
-      </form>
-      ${ui.vErr ? `<p class="err" role="alert">${esc(ui.vErr)}</p>` : ''}
-      ${card}</section>`;
-  }
-
-  function screenVendor() {
-    const sh = shop();
-    const all = S().signups;
-    const stampsHere = all.reduce((a, s) => a + U.stampsAt(s, sh.id), 0);
-    const usedPrizes = all.filter((s) => s.redeemed && s.redeemed_at === sh.name);
-    const rewardsUsed = all.reduce((a, s) => a + Number((s.rewards_used || {})[sh.id] || 0), 0);
-    const spent = usedPrizes.reduce((a, s) => a + Number((s.prize || {}).value || 0), 0);
-    const live = liveCampaigns();
-    const ws = councilWorkshops();
-
-    const camp = live.map((c) => {
-      const t = (c.traders || {})[sh.id];
-      return `<article class="card">
-        <h3>${esc(c.title)}</h3><div class="muted">${esc(c.month)}</div><p>${esc(c.blurb)}</p>
-        ${c.street_extra ? `<p><b>Street extra:</b> ${esc(c.street_extra)}</p>` : ''}
-        ${t ? `<div class="tags"><span class="tag ${t.status === 'in' ? 'yes' : 'no'}">${t.status === 'in' ? "You're in" : 'Not this time'}</span></div>
-              ${t.offer ? `<p class="offer">Your offer: ${esc(t.offer)}</p>` : ''}
-              <button class="btn ghost small" data-act="trader-clear" data-id="${c.id}">Change my answer</button>`
-          : `<label for="offer-${c.id}">Your offer (optional)</label>
-             <input id="offer-${c.id}" type="text" maxlength="120" placeholder="e.g. Free upsize + a stamp">
-             <div class="row" style="margin-top:8px">
-               <button class="btn" data-act="trader-in" data-id="${c.id}">I'm in</button>
-               <button class="btn ghost" data-act="trader-out" data-id="${c.id}">Not this time</button></div>`}
-      </article>`;
-    }).join('');
-
-    const wsRows = ws.length ? `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Time</th><th>Online or in person</th><th>Where</th><th></th></tr></thead><tbody>
-      ${ws.map((w) => {
-        const booked = S().bookings.some((b) => Number(b.workshop) === Number(w.id) && b.trader === sh.id);
-        return `<tr><td>${U.date(w.date)}<br><b>${esc(w.name)}</b></td><td>${esc(w.time)}</td><td>${esc(w.format)}</td><td>${fmtWorkshopWhere(w)}</td>
-          <td>${booked ? `<span class="ok">Booked ✓</span> <button class="btn small ghost" data-act="unbook" data-id="${w.id}">Cancel</button>`
-                        : `<button class="btn small" data-act="book" data-id="${w.id}">Book</button>`}</td></tr>`;
-      }).join('')}</tbody></table></div>` : '<p>No workshops for your area yet.</p>';
-
-    return `<div class="screen">
-      <h1>Vendor</h1>
-      ${explainer('What a shop owner sees: their numbers, their PIN, and campaigns to join.', 'Shop owners and their staff.', 'Pick a shop, then say "I\'m in" to a campaign.')}
-      <div class="card"><label for="pretend" style="margin-top:0">Pretend you are</label>
-        <select id="pretend" data-change="pretend">${C.shops.map((x) => `<option value="${x.id}"${x.id === ui.shop ? ' selected' : ''}>${esc(x.name)} (${esc(x.type)})</option>`).join('')}</select></div>
-      <div class="nums">
-        <div class="num"><b>${stampsHere}</b><span>Stamps given here</span></div>
-        <div class="num"><b>${usedPrizes.length + rewardsUsed}</b><span>Prizes used here</span></div>
-        <div class="num"><b>${U.money(spent)}</b><span>Prize money spent here</span></div></div>
-      <section><h2>How you'll use it</h2><div class="grid cards">
-        <div class="card"><h3>Stamps</h3><p><b>Nothing to do.</b> Customers scan the counter QR or tap the sticker after paying. It takes about 5 seconds. It works the same way as StampMe.</p>
-          <p class="muted small">Later: link your bank card so stamps land automatically when you pay.</p></div>
-        <div class="card"><h3>Prizes and rewards</h3><p>Type your PIN on the customer's phone.</p><div class="pin" aria-label="Shop PIN ${sh.pin.split('').join(' ')}">${sh.pin}</div></div>
-        <div class="card"><h3>Your counter sticker</h3><p>Print this QR for your counter.</p>${qrBox(location.origin + '/tap/' + sh.id)}
-          <p class="small muted">Opens ${esc(location.origin)}/tap/${esc(sh.id)}</p></div></div></section>
-      ${vendorScanCard()}
-      <section><h2>Campaigns you can join</h2><div class="grid cards">${camp || '<p>No live campaigns yet. Ask council or the street to back one.</p>'}</div></section>
-      <section><h2>Workshops for your area</h2>${wsRows}</section>
-    </div>`;
-  }
-
-  function screenCustomer() {
-    const s = me();
-    const demo = C.shops.map((sh) => `<button class="btn ghost" data-act="stamp" data-shop="${sh.id}" ${s ? '' : 'disabled'}>
-      Scan the QR at ${esc(sh.name)}${s ? ` (${U.stampsAt(s, sh.id)})` : ''}</button>`).join('');
-    const live = liveCampaigns().map((c) => {
-      const ins = Object.entries(c.traders || {}).filter(([, t]) => t.status === 'in');
-      return `<article class="card"><h3>${esc(c.title)}</h3><div class="muted">${esc(c.month)}</div>
-        ${ins.map(([id, t]) => `<p class="offer"><b>${esc(U.shopName(id))}</b>${t.offer ? ': ' + esc(t.offer) : ''}</p>`).join('') || '<p class="muted">No shops are in yet.</p>'}</article>`;
-    }).join('');
-    return `<div class="screen">
-      <h1>Customer</h1>
-      ${explainer('The customer\'s pass on their phone. It holds stamps and rewards.', 'Shoppers on the street.', 'Tap a shop button to get a stamp.')}
-      <div class="grid three">
-        <section class="card"><h2>Your pass</h2>${phoneContent(false)}
-          <p class="muted small" style="margin-top:12px">In the real version this pass lives in Apple or Google Wallet. No app needed.</p></section>
-        <section class="card"><h2>Get a stamp after you pay</h2>
-          <p><b>In real life:</b> after you pay, scan the QR on the counter or tap the sticker. It takes about 5 seconds. The shop does nothing. It works the same way as StampMe.</p>
-          <p class="muted small">Later: link your bank card so stamps land automatically when you pay.</p>
-          <p class="who-box"><b>6 stamps at one shop</b> = that shop's reward.<br><b>10 stamps anywhere</b> = the big draw.</p>
-          ${s ? '' : '<p class="err">Sign up first to collect stamps.</p>'}
-          <p class="muted">In this demo, these buttons act like scanning:</p><div class="shopbtns">${demo}</div>
-          <p class="muted small" style="margin-top:10px">Real life: 1 stamp per shop per day. In the demo you can repeat, so you can try it.</p></section>
-        <section><h2>Happening now</h2><div class="grid">${live || '<p>No live campaigns yet.</p>'}</div></section>
+    const campHtml = camps.length ? camps.map((c) => {
+      const s = (c.traders || {})[t.id];
+      return campCard(c, s
+        ? `<p><span class="tag ${s.status === 'in' ? '' : 'no'}">${s.status === 'in' ? "You're in" : 'Not this time'}</span> ${esc(s.offer || '')}</p><button class="btn ghost small" data-act="trader-undo" data-id="${c.id}">Change my answer</button>`
+        : `<form data-form="optin" data-id="${c.id}"><label for="o-${c.id}">Your offer (optional)</label><input id="o-${c.id}" name="offer" placeholder="A stamp with any purchase" maxlength="120">
+            <div class="row" style="margin-top:10px"><button class="btn" type="submit">I'm in</button><button class="btn ghost" type="button" data-act="trader-out" data-id="${c.id}">Not this time</button></div></form>`);
+    }).join('') : `<p class="muted">No campaigns yet. They show here when council or your street backs one.</p>`;
+    return `${intro('Vendor', "Each shop's own screen. Made so busy staff barely have to touch it.", 'Every shop, cafe and service on Main Street, on any phone or tablet.', 'Pick a shop. Scan a customer (pick anyone from the demo list). Use their prize with one tap. Then join a campaign and book a workshop.')}
+      <div class="row" style="margin-bottom:16px"><label for="t-pick" style="margin:0">Pretend you are</label><select id="t-pick" data-change="trader-pick" style="max-width:320px">${TRADERS.map((x) => `<option value="${x.id}" ${x.id === t.id ? 'selected' : ''}>${esc(x.name)} (${esc(x.type)})</option>`).join('')}</select></div>
+      <div class="stats"><div class="stat"><b>${stamped}</b><span>stamps given here</span></div><div class="stat"><b>${used.length}</b><span>prizes used here</span></div><div class="stat"><b>${money(used.reduce((a, s) => a + Number((s.prize || {}).value || 0), 0))}</b><span>prize money spent here</span></div></div>
+      <h2>How you'll use it</h2>
+      <div class="kit gap" style="margin-top:8px">
+        <div class="howcard"><h3>Stamps: nothing to do</h3><p>After paying, customers scan the QR on your counter or tap the sticker. It takes about 5 seconds. The stamp lands on their pass by itself. One stamp per shop per day. Same as StampMe.</p><p class="muted" style="font-size:14px">Later: customers can link their bank card, so stamps happen when they pay.</p></div>
+        <div class="howcard"><h3>Prizes and rewards: type your PIN</h3><p>The customer shows their pass. Tap <b>Staff: tap to use this</b> on their phone and type your PIN.</p><div class="bigpin" aria-label="Shop PIN ${t.pin.split('').join(' ')}">${t.pin}</div><p class="muted" style="font-size:14px">Your shop PIN. Keep it behind the counter.</p></div>
+        <div class="howcard"><h3>Your counter sticker</h3><p>Print this QR. The NFC tap sticker we post you has the same link.</p><div class="qr" role="img" aria-label="Counter sticker QR code" style="background:#fff;border-radius:8px;padding:8px;width:fit-content">${U.qrSvg(location.origin + '/tap/' + t.id, 4)}</div><p class="muted" style="font-size:13px">${esc(location.origin)}/tap/${esc(t.id)}</p></div>
       </div>
-    </div>`;
+      <div class="grid two gap">
+        <section class="panel"><h3>Busy counter? Scan instead</h3>
+          <p class="muted">Tap Scan to use the camera, or plug a barcode scanner into your POS tablet and scan into the box. No typing.</p>
+          <button class="btn sun big" data-act="v-scan">Scan a customer's pass</button>
+          <form data-form="scan" style="margin-top:12px"><label for="scan-in">Scanner box</label><input id="scan-in" name="code" placeholder="Scan or type CMS-1234" autocomplete="off"></form>
+          ${result}</section>
+        <section><h3 style="margin-bottom:10px">Campaigns you can join</h3>${campHtml}</section></div>
+      <div class="panel gap"><h3>Workshops for your area</h3><p class="muted">Run by Fruitbowl. Book a spot with one tap.</p>${wsTable(wsList().filter((w) => (w.councils || []).includes(HOME)), true)}</div>`;
   }
 
-  function screenFruitbowl() {
-    const st = codeStyle();
-    return `<div class="screen">
-      <h1>Fruitbowl</h1>
-      ${explainer(`${esc(C.org)} runs the show. It posts campaigns and workshops and sets up the festival.`, `${esc(C.org)} staff.`, 'Change the code style, then look at a phone on Festival day.')}
-      <section class="card"><h2>Festival day settings</h2>
-        <p>How should customers' codes show on their phones? It is saved for everyone.</p>
-        <div class="seg" role="group" aria-label="Code style">
-          ${['qr', 'number', 'barcode'].map((k) => `<button class="btn" type="button" aria-pressed="${st === k}" data-act="style" data-style="${k}">${U.styleName(k)}</button>`).join('')}
-        </div></section>
-      ${liveNums()}
-      <section><h2>Post a campaign</h2>${postForm('fruitbowl')}</section>
-      <section><h2>Every campaign, every level</h2><div class="grid cards">${S().campaigns.map((c) => campaignCard(c, 'fruitbowl')).join('')}</div></section>
+  function vCustomer() {
+    const me = S.phoneCode && byCode(S.phoneCode);
+    const camps = campList().filter(live);
+    return `${intro('Customer', "The shopper's pass: stamps, prizes, rewards and what's on.", 'Anyone who signs up. In the real version the pass lives in Apple or Google Wallet, so no app is needed.', `Tap a shop's sticker below to collect stamps. Get ${C.stampsForReward} at one shop to unlock its reward. Get ${C.stampsForDraw} anywhere for the big draw.`)}
+      <div class="grid two">
+        <section>${me ? walletView(me) + readyToUse(me) : `<div class="panel"><p>You're not signed up yet.</p><a class="btn sun" href="#activation">Sign up on the Festival day screen</a></div>`}</section>
+        <section>
+          ${me ? `<div class="panel"><h3>Get a stamp after you pay</h3><p>In real life: open your camera and scan the QR on the counter, or tap your phone on the sticker. About 5 seconds. The shop does nothing. It works the same way as StampMe.</p>
+            <p class="who" style="margin-top:0"><b>${C.stampsForReward} stamps at one shop</b> = that shop's reward.<br><b>${C.stampsForDraw} stamps anywhere</b> = the big draw.</p>
+            <p class="muted" style="margin-top:12px">Demo: each button does the same thing for that shop.</p><div class="row">${TRADERS.map((t) => `<button class="btn ghost small" data-act="tap" data-t="${t.id}">${esc(t.name)} · ${U.stampsAt(me, t.id)}</button>`).join('')}</div>
+            <p class="muted" style="margin-top:10px;font-size:14px">Coming later: link your bank card and stamps land automatically when you pay.</p></div>` : ''}
+          <h3 style="margin:18px 0 10px">Happening now</h3>
+          ${camps.length ? camps.map((c) => {
+            const ins = TRADERS.filter((t) => ((c.traders || {})[t.id] || {}).status === 'in');
+            return `<div class="camp"><h3>${esc(c.title)}</h3><div class="muted">${esc(c.month)}</div><p>${esc(c.blurb)}</p>${c.street_extra ? `<p><b>${esc(c.street_extra)}</b></p>` : ''}
+              ${ins.length ? `<ul class="list">${ins.map((t) => `<li><b>${esc(t.name)}</b> · ${esc(c.traders[t.id].offer || 'Stamp with any purchase')}</li>`).join('')}</ul>` : ''}</div>`;
+          }).join('') : '<p class="muted">Nothing on yet.</p>'}
+        </section></div>`;
+  }
+
+  function vFruitbowl() {
+    const camps = campList();
+    return `${intro('Fruitbowl', 'Fruitbowl plans the year, adds prizes, and runs the workshops. Campaigns you post go to council and the Street Association to back.', 'The Fruitbowl team.', 'Post Easter Egg Hunt using an idea. Add a workshop for Maroondah only. Then open the Vendor screen to see it.')}
+      <div class="panel"><h3>Festival day settings</h3><p class="muted">How the customer's code shows on their phone after they sign up. It is saved for everyone. Pick whatever your scanner reads best.</p>
+        <div class="row" role="group" aria-label="Code style">${[['qr', 'QR code'], ['number', 'Number'], ['barcode', 'Barcode']].map(([v, l]) => `<button class="btn ${style() === v ? '' : 'ghost'}" data-act="code-style" data-v="${v}" aria-pressed="${style() === v}">${l}</button>`).join('')}</div></div>
+      <div class="gap">${statsBlock()}</div>
+      <div class="grid two">
+        <section class="panel"><h3>Post a campaign</h3>${campaignForm('fruitbowl')}</section>
+        <section><h3 style="margin-bottom:10px">Every campaign, every level</h3>${camps.length ? camps.map((c) => campCard(c)).join('') : '<p class="muted">No campaigns yet.</p>'}</section></div>
       ${prizesPanel('fruitbowl')}
-      <section><h2>Workshops</h2><p class="muted">Only ${esc(C.org)} makes workshops. Vendors only see workshops sent to their council.</p>
-        ${workshopTable(S().workshops, true)}
-        <form data-form="workshop" class="card" style="margin-top:12px" novalidate>
-          <h3>Add a workshop</h3>
-          <div class="grid cards">
-            <div><label for="ws-name">Name</label><input id="ws-name" name="name" type="text" maxlength="80"></div>
-            <div><label for="ws-date">Date</label><input id="ws-date" name="date" type="date"></div>
-            <div><label for="ws-time">Time</label><input id="ws-time" name="time" type="text" maxlength="20" placeholder="e.g. 6:30pm"></div>
-            <div><label for="ws-format">Format</label><select id="ws-format" name="format"><option>Online</option><option>In person</option></select></div>
-            <div><label for="ws-where">Where, or link</label><input id="ws-where" name="place" type="text" maxlength="120"></div>
+      <div class="panel gap"><h3>Workshops</h3><p class="muted">Only Fruitbowl creates workshops. Pick which councils get each one. Their vendors see it and book.</p>
+        ${wsTable(wsList(), false)}
+        <form data-form="workshop" class="gap">
+          <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+            <div><label for="w-name">Workshop</label><input id="w-name" name="name" required placeholder="Know your brand"></div>
+            <div><label for="w-date">Date</label><input id="w-date" name="date" type="date" required></div>
+            <div><label for="w-time">Time</label><input id="w-time" name="time" type="time" required></div>
+            <div><label for="w-format">Format</label><select id="w-format" name="format"><option>Online</option><option>In person</option></select></div>
+            <div style="grid-column:1/-1"><label for="w-where">Where or link</label><input id="w-where" name="where" required placeholder="Croydon Library, or a Google Meet link"></div>
           </div>
-          <fieldset style="border:0;padding:0;margin:.75rem 0 0"><legend style="font-weight:700">Send to</legend>
-            <div class="checks">${C.allCouncils.map((n) => `<label class="check"><input type="checkbox" name="councils" value="${esc(n)}"> <span>${esc(n)}</span></label>`).join('')}</div></fieldset>
-          <div class="row" style="margin-top:12px"><button class="btn" type="submit">Send workshop</button></div>
-        </form></section>
-    </div>`;
+          <fieldset style="border:0;padding:0;margin:10px 0 0"><legend style="font-weight:700;font-size:15px">Send to</legend><div class="row">${C.allCouncils.map((c) => `<label class="check" style="margin:4px 12px 0 0"><input type="checkbox" name="councils" value="${esc(c)}" ${c === HOME ? 'checked' : ''}> ${esc(c)}</label>`).join('')}</div></fieldset>
+          <p style="margin-top:14px"><button class="btn" type="submit">Send workshop</button></p></form></div>`;
   }
 
-  function screenCouncil() {
-    return `<div class="screen">
-      <h1>Council</h1>
-      ${explainer(`${esc(C.councilLabel)} sees every campaign and decides what to back.`, 'Council staff.', 'Back a campaign. Then check the Vendor screen.')}
-      ${liveNums()}
-      <section><h2>Post your own campaign</h2>${postForm('council')}</section>
-      ${campaignList('council')}
+  function vCouncil() {
+    const camps = campList();
+    return `${intro('Council', "Council can back Fruitbowl's campaigns, make its own, and add prizes. Backing or posting a campaign sends it straight to vendors.", esc(C.councilLabel) + '.', 'Post a campaign about something happening locally. Then open the Vendor screen and join it.')}
+      ${statsBlock()}
+      <div class="grid two">
+        <section class="panel"><h3>Post your own campaign</h3><p class="muted">It goes straight to your vendors.</p>${campaignForm('council')}</section>
+        <section><h3 style="margin-bottom:10px">Campaigns</h3>${camps.length ? camps.map((c) => campCard(c, c.council === 'pending' ? `<div class="row"><button class="btn small" data-act="council" data-id="${c.id}" data-v="approved">Back it and send to vendors</button><button class="btn ghost small" data-act="council" data-id="${c.id}" data-v="declined">Not for us</button></div>` : '')).join('') : '<p class="muted">No campaigns yet.</p>'}</section></div>
       ${prizesPanel('council')}
-      <section><h2>Workshops for ${esc(C.council)} vendors</h2>${workshopTable(councilWorkshops(), true)}</section>
-    </div>`;
+      <div class="panel gap"><h3>Workshops for ${esc(HOME)} vendors</h3>${wsTable(wsList().filter((w) => (w.councils || []).includes(HOME)), false)}</div>`;
   }
 
-  function screenStreet() {
-    return `<div class="screen">
-      <h1>Street Association</h1>
-      ${explainer(`${esc(C.streetOrg)} backs campaigns for the street and picks which shops are in.`, 'Street association members.', 'Back a campaign, then pick the shops that are in.')}
-      ${liveNums()}
-      <section><h2>Post your own campaign</h2>${postForm('street')}</section>
-      ${campaignList('street')}
-      ${prizesPanel('street')}
-    </div>`;
+  function vStreet() {
+    const camps = campList();
+    return `${intro('Street Association', 'The Street Association can back campaigns, make its own, add prizes, and see which shops are in.', `The ${esc(C.streetOrg)} president and coordinator.`, 'Back Hot Days, Cool Street with an extra like free water on hot days. Or post your own campaign.')}
+      ${statsBlock()}
+      <div class="grid two">
+        <section class="panel"><h3>Post your own campaign</h3><p class="muted">It goes straight to your vendors.</p>${campaignForm('street')}</section>
+        <section><h3 style="margin-bottom:10px">Campaigns</h3>${camps.length ? camps.map((c) => {
+          const tr = c.traders || {};
+          const act = c.street === 'yes'
+            ? `<details><summary>Which vendors are in</summary><div class="table-wrap"><table><tbody>${TRADERS.map((t) => { const s = tr[t.id]; return `<tr><td>${esc(t.name)}</td><td>${s ? `<span class="tag ${s.status === 'in' ? '' : 'no'}">${s.status === 'in' ? 'In' : 'Not this time'}</span>` : '<span class="tag wait">No answer</span>'}</td><td>${esc((s && s.offer) || '')}</td></tr>`; }).join('')}</tbody></table></div></details>`
+            : c.street === 'no' ? ''
+              : `<form data-form="street" data-id="${c.id}"><label for="x-${c.id}">Street extra (optional)</label><input id="x-${c.id}" name="extra" placeholder="Santa visits Saturday 12 December" maxlength="200">
+                  <div class="row" style="margin-top:10px"><button class="btn" type="submit">Back it and send to vendors</button><button class="btn ghost" type="button" data-act="street-no" data-id="${c.id}">Not for us</button></div></form>`;
+          return campCard(c, act);
+        }).join('') : '<p class="muted">No campaigns yet.</p>'}</section></div>
+      ${prizesPanel('street')}`;
   }
 
-  const SCREENS = { start: screenStart, festival: screenFestival, vendor: screenVendor, customer: screenCustomer, fruitbowl: screenFruitbowl, council: screenCouncil, street: screenStreet };
+  const VIEW_FN = { start: vStart, activation: vActivation, trader: vTrader, customer: vCustomer, fruitbowl: vFruitbowl, council: vCouncil, street: vStreet };
 
-  // ======== RENDER ========
+  // ---- render ----
   function snapshotFields() {
     const snap = {};
     root.querySelectorAll('input[id],select[id],textarea[id]').forEach((el) => {
@@ -495,28 +381,22 @@
       const el = root.querySelector('#' + CSS.escape(id));
       if (!el) return;
       if (el.type === 'checkbox') el.checked = snap[id];
-      else if (el.tagName === 'SELECT') { if ([...el.options].some((o) => o.value === snap[id])) el.value = snap[id]; }
-      else el.value = snap[id];
+      else if (el.tagName === 'SELECT') { if ([...el.options].some((o) => o.value === snap[id])) el.value = snap[id]; } else el.value = snap[id];
     });
   }
 
-  function renderTabs() {
-    document.getElementById('tabs').innerHTML = TABS.map(([k, n]) =>
-      `<a href="#/${k}"${k === ui.tab ? ' aria-current="page"' : ''}>${n}</a>`).join('');
-  }
-
   function render() {
-    renderTabs();
+    document.getElementById('nav').innerHTML = VIEWS.map((v) => `<a href="#${v.id}"${S.view === v.id ? ' aria-current="page"' : ''}>${v.label}</a>`).join('');
     if (!D.ready) {
       root.innerHTML = D.error === 'not-configured'
-        ? `<div class="card"><h1>Almost there</h1><p>This site needs its database. Add the Supabase URL and key in <code>js/config.js</code>. See the README.</p></div>`
+        ? `<div class="panel"><h2>Almost there</h2><p>This site needs its database. Add the Supabase URL and key in <code>js/config.js</code>. See the README.</p></div>`
         : D.error
-          ? `<div class="card"><h1>Can't reach the demo data</h1><p>${esc(D.error)}</p><button class="btn" onclick="location.reload()">Try again</button></div>`
-          : `<p>Loading…</p>`;
+          ? `<div class="panel"><h2>Can't reach the demo data</h2><p>${esc(D.error)}</p><button class="btn" onclick="location.reload()">Try again</button></div>`
+          : '<p>Loading…</p>';
       return;
     }
     const snap = snapshotFields();
-    root.innerHTML = SCREENS[ui.tab]();
+    root.innerHTML = VIEW_FN[S.view]();
     restoreFields(snap);
   }
 
@@ -534,245 +414,208 @@
   }
 
   function route() {
-    const k = (location.hash.replace(/^#\/?/, '') || 'start').split('?')[0];
-    ui.tab = SCREENS[k] ? k : 'start';
+    const h = location.hash.replace(/^#\/?/, '');
+    if (h.startsWith('tap-')) { render(); return; } // the stamp is added after the data loads
+    S.view = VIEW_FN[h] ? h : 'start';
     render();
     window.scrollTo(0, 0);
   }
 
-  // ======== ACTIONS ========
-  const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+  // ---- actions ----
+  const focusId = (id) => { const el = document.getElementById(id); if (el) el.focus(); };
 
-  function deskPick(raw) {
-    const s = byCode(U.normCode(raw));
-    if (!s) return 'No one has that code.';
-    if (s.prize) return `${s.name} has already spun.`;
-    ui.desk = { code: s.code, last: null, err: '' };
-    render();
-    const box = document.getElementById('desk-scan');
-    if (box) box.focus();
-    return '';
+  async function addStamp(code, tid) {
+    const s = byCode(code);
+    if (!s) return;
+    const here = U.stampsAt(s, tid) + 1, total = stampTotal(s) + 1;
+    const r = await run('give_stamp', { p_code: code, p_shop: tid });
+    if (r.ok) {
+      U.toast(here % C.stampsForReward === 0 ? 'Reward unlocked at ' + tName(tid) + '!'
+        : total === C.stampsForDraw ? "You're in the big draw!"
+          : 'Stamp from ' + tName(tid) + '. ' + Math.min(total, C.stampsForDraw) + '/' + C.stampsForDraw);
+    }
+  }
+  async function usePrize(code, tid) {
+    const s = byCode(code);
+    if (!s || !s.prize) { U.toast('No festival prize on this pass', true); return false; }
+    if (s.redeemed) { U.toast('Already used', true); return false; }
+    const r = await run('redeem_prize', { p_code: code, p_shop: tid });
+    if (r.ok) U.toast('Used: ' + s.prize.name + ' at ' + tName(tid));
+    return r.ok;
+  }
+  async function useReward(code, tid) {
+    const s = byCode(code);
+    if (!s || rewardsAvail(s, tid) <= 0) { U.toast('No reward to use here yet', true); return false; }
+    const r = await run('use_reward', { p_code: code, p_shop: tid });
+    if (r.ok) U.toast('Reward used at ' + tName(tid));
+    return r.ok;
   }
 
-  function vendorPick(raw) {
-    const s = byCode(U.normCode(raw));
-    if (!s) return 'No customer has that code.';
-    ui.vcode = s.code; ui.vErr = '';
-    render();
-    return '';
-  }
-
-  // Checks a PIN against a shop. Returns the shop or an error text.
-  const pinShop = (pin) => U.shopByPin(pin) || null;
+  function deskPick(raw) { S.deskCode = normCode(raw); render(); focusId('desk-in'); return ''; }
+  function vendorPick(raw) { S.scan = normCode(raw) || null; render(); return ''; }
 
   const ACTS = {
     async reset() {
       if (!confirm('Reset the demo? This wipes all changes and reloads the demo data.')) return;
       const r = await run('reset_demo', {}, 'Demo reset.');
-      if (r.ok) { store.del('msr_code'); ui.desk = { code: null, last: null, err: '' }; ui.vcode = null; render(); }
+      if (r.ok) { S.phoneCode = null; store.set('msr-code', ''); S.deskCode = ''; S.lastAward = null; S.scan = null; S.pinFor = null; render(); }
     },
-    forget() { store.del('msr_code'); render(); },
-    style(b) { return run('set_setting', { p_key: 'code_style', p_value: b.dataset.style }, 'Saved for everyone.'); },
+    'reset-phone'() { S.phoneCode = null; store.set('msr-code', ''); render(); },
+    'desk-scan'() {
+      const list = signups().filter((s) => !s.prize).slice().reverse().slice(0, 12).map((s) => ({ label: `${s.name} · ${s.code}`, code: s.code }));
+      U.openScanner({ title: 'Scan their code', list, onCode: deskPick, after: () => focusId('desk-in') });
+    },
+    'code-style': (b) => run('set_setting', { p_key: 'code_style', p_value: b.dataset.v }, 'Phones now show a ' + STYLE_NAME[b.dataset.v]),
+    async award(b) {
+      const cur = byCode(b.dataset.code);
+      if (!cur || cur.prize) return;
+      const p = st().prizes.find((x) => Number(x.id) === Number(b.dataset.prize));
+      if (!p) return;
+      if (left(p) <= 0) return U.toast(p.name + ' has run out', true);
+      const r = await run('award_prize', { p_code: cur.code, p_prize: p.id });
+      if (r.ok) { S.lastAward = { code: cur.code, name: cur.name, prize: p.name, where: p.collect_at || '' }; S.deskCode = ''; render(); focusId('desk-in'); }
+    },
+    async undo() {
+      if (!S.lastAward) return;
+      const s = byCode(S.lastAward.code);
+      if (s && s.redeemed) return U.toast("Can't undo. It's already been used.", true);
+      const r = await run('undo_prize', { p_code: S.lastAward.code }, 'Undone');
+      if (r.ok) { S.lastAward = null; render(); }
+    },
+    'pin-open'(b) { S.pinFor = b.dataset.key; render(); focusId('pin-in'); },
+    tap(b) { if (S.phoneCode) return addStamp(S.phoneCode, b.dataset.t); },
+    'v-scan'() {
+      const list = signups().slice(-12).reverse().map((s) => ({ label: `${s.name} · ${s.code}`, code: s.code }));
+      U.openScanner({ title: "Scan a customer's pass", list, onCode: vendorPick });
+    },
+    'v-clear'() { S.scan = null; render(); focusId('scan-in'); },
+    'v-stamp'() { if (S.scan) return addStamp(S.scan, S.trader); },
+    'v-use-prize'() { if (S.scan) return usePrize(S.scan, S.trader); },
+    'v-use-reward'() { if (S.scan) return useReward(S.scan, S.trader); },
+    council: (b) => run('council_decide', { p_id: Number(b.dataset.id), p_approve: b.dataset.v === 'approved' }, b.dataset.v === 'approved' ? 'Backed. Sent to vendors.' : 'Passed on this one'),
+    'street-no': (b) => run('street_decide', { p_id: Number(b.dataset.id), p_yes: false, p_extra: '' }, 'Passed on this one'),
+    'trader-out': (b) => run('set_trader', { p_id: Number(b.dataset.id), p_shop: S.trader, p_status: 'out', p_offer: '' }),
+    'trader-undo': (b) => run('set_trader', { p_id: Number(b.dataset.id), p_shop: S.trader, p_status: 'none', p_offer: '' }),
+    book: (b) => run('book_workshop', { p_trader: S.trader, p_workshop: Number(b.dataset.w) }, 'Booked. Details coming by email.'),
     'use-idea'(b) {
-      const role = b.dataset.role, i = Number(val('idea-' + role));
-      const idea = C.ideas[i];
-      document.getElementById(`cf-${role}-title`).value = idea.title;
-      document.getElementById(`cf-${role}-month`).value = idea.month;
-      document.getElementById(`cf-${role}-blurb`).value = idea.blurb;
+      const x = C.ideas[Number(b.dataset.i)], lv = b.dataset.level;
+      document.getElementById('ct-' + lv).value = x.title;
+      document.getElementById('cm-' + lv).value = x.month;
+      document.getElementById('cb-' + lv).value = x.blurb;
+      focusId('ct-' + lv);
     },
-    'council-back': (b) => run('council_decide', { p_id: Number(b.dataset.id), p_approve: true }, 'Backed. Vendors can see it now.'),
-    'council-no': (b) => run('council_decide', { p_id: Number(b.dataset.id), p_approve: false }, 'Marked as not for us.'),
-    'street-back': (b) => run('street_decide', { p_id: Number(b.dataset.id), p_yes: true, p_extra: val('extra-' + b.dataset.id) }, 'Backed. Vendors can see it now.'),
-    'street-no': (b) => run('street_decide', { p_id: Number(b.dataset.id), p_yes: false, p_extra: '' }, 'Marked as not for us.'),
-    'trader-in': (b) => run('set_trader', { p_id: Number(b.dataset.id), p_shop: ui.shop, p_status: 'in', p_offer: val('offer-' + b.dataset.id) }, "You're in!"),
-    'trader-out': (b) => run('set_trader', { p_id: Number(b.dataset.id), p_shop: ui.shop, p_status: 'out', p_offer: '' }, 'Noted.'),
-    'trader-clear': (b) => run('set_trader', { p_id: Number(b.dataset.id), p_shop: ui.shop, p_status: 'none', p_offer: '' }),
     stock: (b) => run('add_stock', { p_id: Number(b.dataset.id), p_n: 10 }, 'Added 10.'),
-    'rm-prize': (b) => run('remove_prize', { p_id: Number(b.dataset.id) }, 'Prize removed.'),
-    book: (b) => run('book_workshop', { p_trader: ui.shop, p_workshop: Number(b.dataset.id) }, 'Booked!'),
-    unbook: (b) => run('cancel_booking', { p_trader: ui.shop, p_workshop: Number(b.dataset.id) }, 'Booking cancelled.'),
+    'del-prize': (b) => run('remove_prize', { p_id: Number(b.dataset.id) }, 'Prize removed'),
     'print-marquee'() {
       document.body.classList.add('printing');
       window.print();
       setTimeout(() => document.body.classList.remove('printing'), 500);
-    },
-
-    // festival desk
-    'desk-scan'() {
-      const list = S().signups.filter((s) => !s.prize).map((s) => ({ label: `${s.name} · ${s.code}`, code: s.code }));
-      U.openScanner({ title: 'Scan their code', list, onCode: (c) => deskPick(c) });
-    },
-    async award(b) {
-      const code = ui.desk.code;
-      if (!code) return;
-      const r = await run('award_prize', { p_code: code, p_prize: Number(b.dataset.id) });
-      if (r.ok) ui.desk = { code: null, last: code, err: '' };
-      else ui.desk.err = r.error;
-      render();
-      const box = document.getElementById('desk-scan');
-      if (box) box.focus();
-    },
-    async undo(b) {
-      const r = await run('undo_prize', { p_code: b.dataset.code }, 'Undone.');
-      if (r.ok) ui.desk.last = null;
-      render();
-    },
-
-    // customer pass: staff use prize / reward with a PIN
-    'pin-prize'() {
-      const s = me();
-      if (!s) return;
-      U.askPin('Staff: type the shop PIN', 'The shop PIN marks this prize as used.', async (pin) => {
-        const sh = pinShop(pin);
-        if (!sh) return "That PIN doesn't match a shop.";
-        const r = await D.rpc('redeem_prize', { p_code: s.code, p_shop_name: sh.name });
-        if (!r.ok) return r.error;
-        U.toast('Prize used at ' + sh.name + '.');
-        return '';
-      });
-    },
-    'pin-reward'(b) {
-      const s = me();
-      if (!s) return;
-      const target = U.shopById(b.dataset.shop);
-      U.askPin('Staff: type the shop PIN', `This reward can only be used at ${target.name}.`, async (pin) => {
-        const sh = pinShop(pin);
-        if (!sh) return "That PIN doesn't match a shop.";
-        if (sh.id !== target.id) return `This reward can only be used at ${target.name}.`;
-        const r = await D.rpc('use_reward', { p_code: s.code, p_shop: sh.id });
-        if (!r.ok) return r.error;
-        U.toast('Reward used at ' + sh.name + '.');
-        return '';
-      });
-    },
-    async stamp(b) {
-      const s = me();
-      if (!s) return U.toast('Sign up first to collect stamps.', true);
-      await run('give_stamp', { p_code: s.code, p_shop: b.dataset.shop }, 'Stamp from ' + U.shopName(b.dataset.shop) + '!');
-    },
-
-    // vendor counter
-    'v-scan'() { U.openScanner({ title: "Scan a customer's pass", onCode: (c) => vendorPick(c) }); },
-    async 'v-prize'() {
-      const s = byCode(ui.vcode);
-      if (s) await run('redeem_prize', { p_code: s.code, p_shop_name: shop().name }, 'Festival prize used.');
-    },
-    async 'v-reward'() {
-      const s = byCode(ui.vcode);
-      if (s) await run('use_reward', { p_code: s.code, p_shop: ui.shop }, 'Reward used.');
-    },
-    async 'v-stamp'() {
-      const s = byCode(ui.vcode);
-      if (s) await run('give_stamp', { p_code: s.code, p_shop: ui.shop }, 'Stamp given.');
-    },
-    'v-next'() { ui.vcode = null; ui.vErr = ''; render(); }
+    }
   };
 
   const FORMS = {
     async signup(f) {
-      const d = new FormData(f);
-      if (!d.get('terms')) return U.toast('Please tick the terms.', true);
-      const r = await run('signup', { p_name: d.get('name'), p_email: d.get('email'), p_postcode: d.get('postcode'), p_optin: !!d.get('optin') });
-      if (r.ok) {
-        store.set('msr_code', r.code);
-        ['su-name', 'su-email', 'su-pc'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
-        render();
+      const d = Object.fromEntries(new FormData(f));
+      const r = await run('signup', { p_name: d.name, p_email: d.email, p_postcode: d.postcode, p_optin: !!d.optin });
+      if (r.ok) { S.phoneCode = r.code; store.set('msr-code', r.code); f.reset(); render(); }
+    },
+    async pin(f) {
+      const d = Object.fromEntries(new FormData(f));
+      const t = TRADERS.find((x) => x.pin === String(d.pin || '').trim());
+      if (!t) return U.toast("That PIN doesn't match a shop", true);
+      const key = f.dataset.key;
+      let ok = false;
+      if (key === 'prize') ok = await usePrize(S.phoneCode, t.id);
+      else {
+        const tid = key.slice(7);
+        if (tid !== t.id) return U.toast('This reward can only be used at ' + tName(tid), true);
+        ok = await useReward(S.phoneCode, tid);
       }
+      if (ok) { S.pinFor = null; render(); }
     },
-    deskscan(f) {
-      const input = f.querySelector('input');
-      const msg = deskPick(input.value);
-      if (msg) { ui.desk.err = msg; render(); } else { const el = document.getElementById('desk-scan'); if (el) el.value = ''; }
-    },
-    vscan(f) {
-      const input = f.querySelector('input');
-      const msg = vendorPick(input.value);
-      if (msg) { ui.vErr = msg; render(); } else { const el = document.getElementById('v-scanbox'); if (el) el.value = ''; }
-    },
-    async campaign(f) {
-      const role = f.dataset.role, d = new FormData(f);
-      const r = await run('post_campaign', { p_title: d.get('title'), p_month: d.get('month'), p_blurb: d.get('blurb'), p_from: role },
-        role === 'fruitbowl' ? 'Sent to council and the street.' : 'Posted. Vendors can see it now.');
+    desk(f) { deskPick(new FormData(f).get('code')); },
+    scan(f) { vendorPick(new FormData(f).get('code')); },
+    async newcamp(f) {
+      const lv = f.dataset.level, d = Object.fromEntries(new FormData(f));
+      const r = await run('post_campaign', { p_title: d.title, p_month: d.month, p_blurb: d.blurb, p_from: lv },
+        lv === 'fruitbowl' ? 'Sent to council and the street' : 'Sent to your vendors');
       if (r.ok) { f.reset(); render(); }
     },
+    street(f) { return run('street_decide', { p_id: Number(f.dataset.id), p_yes: true, p_extra: new FormData(f).get('extra') || '' }, 'Sent to every vendor'); },
+    optin(f) {
+      return run('set_trader', { p_id: Number(f.dataset.id), p_shop: S.trader, p_status: 'in', p_offer: new FormData(f).get('offer') || 'Stamp with any purchase' }, "You're in");
+    },
     async prize(f) {
-      const role = f.dataset.role, d = new FormData(f);
-      const r = await run('add_prize', { p_name: d.get('name'), p_value: parseInt(d.get('value'), 10), p_collect_at: d.get('where'), p_stock: parseInt(d.get('stock'), 10), p_added_by: role },
-        'Prize added. It is on the festival desk now.');
+      const d = Object.fromEntries(new FormData(f));
+      const v = Number(d.value), q = Number(d.stock);
+      if (!(v >= 0) || !(q > 0)) return U.toast('Value and how many need to be numbers', true);
+      const r = await run('add_prize', { p_name: d.name, p_value: Math.round(v), p_collect_at: d.where, p_stock: Math.round(q), p_added_by: f.dataset.level }, "Prize added. It's on the festival desk now.");
       if (r.ok) { f.reset(); render(); }
     },
     async workshop(f) {
-      const d = new FormData(f);
-      const r = await run('add_workshop', { p_name: d.get('name'), p_date: d.get('date') || null, p_time: d.get('time'), p_format: d.get('format'), p_place: d.get('place'), p_councils: d.getAll('councils') },
-        'Workshop sent.');
+      const fd = new FormData(f), cs = fd.getAll('councils');
+      if (!cs.length) return U.toast('Pick at least one council', true);
+      const r = await run('add_workshop', { p_name: fd.get('name'), p_date: fd.get('date') || null, p_time: fd.get('time'), p_format: fd.get('format'), p_place: fd.get('where'), p_councils: cs },
+        'Workshop sent to ' + cs.length + ' council' + (cs.length > 1 ? 's' : ''));
       if (r.ok) { f.reset(); render(); }
-    }
-  };
-
-  const CHANGES = {
-    pretend(el) {
-      ui.shop = el.value; ui.vcode = null; ui.vErr = '';
-      root.querySelectorAll('input[id^="offer-"]').forEach((i) => (i.value = '')); render(); },
-    'trader-sel'(el) {
-      const c = S().campaigns.find((x) => x.id === Number(el.dataset.id));
-      const t = c && (c.traders || {})[el.dataset.shop];
-      return run('set_trader', { p_id: Number(el.dataset.id), p_shop: el.dataset.shop, p_status: el.value, p_offer: t ? t.offer : '' });
     }
   };
 
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
     if (!b || b.disabled) return;
-    if (b.tagName === 'A') e.preventDefault();
     const fn = ACTS[b.dataset.act];
-    if (fn) fn(b);
+    if (fn) { if (b.tagName === 'A') e.preventDefault(); fn(b); }
   });
   document.addEventListener('submit', (e) => {
-    const f = e.target.closest('[data-form]');
+    const f = e.target.closest('form[data-form]');
     if (!f) return;
     e.preventDefault();
     FORMS[f.dataset.form](f);
   });
   document.addEventListener('change', (e) => {
-    const el = e.target.closest('[data-change]');
-    if (el) CHANGES[el.dataset.change](el);
+    if (e.target.matches('[data-change="trader-pick"]')) {
+      S.trader = e.target.value; S.scan = null; store.set('msr-trader', S.trader);
+      root.querySelectorAll('input[id^="o-"]').forEach((i) => (i.value = ''));
+      render();
+    }
   });
   window.addEventListener('hashchange', route);
 
-  // ======== BOOT ========
+  // ---- start ----
   const logo = document.getElementById('logo');
-  logo.innerHTML = `<img src="${esc(C.logoUrl)}" alt="${esc(C.logoAlt)}">`;
-  logo.firstChild.onerror = () => { logo.textContent = C.logoAlt; logo.style.fontWeight = '800'; };
+  logo.innerHTML = `<img class="fb" src="${esc(C.logoUrl)}" alt="${esc(C.logoAlt)}">`;
+  logo.firstChild.onerror = () => { logo.innerHTML = `<span class="fb-text">${esc(C.logoAlt)}</span>`; };
   document.getElementById('siteName').textContent = C.siteName;
   document.getElementById('streetName').textContent = C.streetName;
-  document.title = C.siteName + ' demo';
-  const root_ = document.documentElement.style;
-  root_.setProperty('--purple', C.colors.purple);
-  root_.setProperty('--yellow', C.colors.yellow);
-  root_.setProperty('--pink', C.colors.pink);
-  root_.setProperty('--light', C.colors.light);
-  root_.setProperty('--ink', C.colors.ink);
+  document.title = C.siteName + ' – ' + C.streetName.replace(/ Main Street$/, '') + ' (demo)';
 
-  // /tap/<shop-id>: add a stamp, then show the Customer screen.
+  // Colours come from js/config.js. Dark mode keeps its own palette in the CSS.
+  const c = C.colors;
+  const theme = document.createElement('style');
+  theme.textContent = `:root{--brand:${c.purple};--bg:${c.light};--ink:${c.ink};--euc:${c.purple};--sun:${c.yellow};--red:${c.pink}}`;
+  document.head.appendChild(theme);
+
+  // /tap/<shop-id> (the QR or NFC sticker), or #tap-<shop-id>: add a stamp, then show Customer.
   let tapShop = null;
-  const m = location.pathname.match(/^\/tap\/([\w-]+)\/?$/);
-  if (m) tapShop = m[1];
+  const pm = location.pathname.match(/^\/tap\/([\w-]+)\/?$/);
+  const hm = location.hash.match(/^#tap-([\w-]+)$/);
+  if (pm) tapShop = pm[1]; else if (hm) tapShop = hm[1];
+  if (tapShop) { try { history.replaceState(null, '', '/#customer'); } catch (e) { /* ignore */ } S.view = 'customer'; }
 
   async function afterFirstLoad() {
-    if (!tapShop) return;
+    if (!tapShop || !D.ready) return;
     const id = tapShop;
     tapShop = null;
-    history.replaceState(null, '', '/#/customer');
-    ui.tab = 'customer';
-    const sh = U.shopById(id), s = me();
-    if (!sh) U.toast('That shop sticker is not part of this demo.', true);
-    else if (!s) U.toast('Sign up first to collect stamps.', true);
-    else await run('give_stamp', { p_code: s.code, p_shop: sh.id }, 'Stamp from ' + sh.name + '!');
+    S.view = 'customer';
+    const t = TRADERS.find((x) => x.id === id);
+    if (!t) U.toast('That sticker is not part of this demo.', true);
+    else if (!(S.phoneCode && byCode(S.phoneCode))) U.toast('Sign up first to collect stamps.', true);
+    else await addStamp(S.phoneCode, t.id);
     render();
   }
 
-  D.onChange(() => { scheduleRender(); });
-  if (tapShop) { history.replaceState(null, '', '/#/customer'); }
+  D.onChange(scheduleRender);
   route();
   D.start().then(afterFirstLoad);
 })();
