@@ -28,7 +28,7 @@ create table signups (
   prize        jsonb,                      -- {id, name, value, collect_at}
   spun_at      timestamptz,
   redeemed     boolean not null default false,
-  redeemed_at  text,                       -- shop name where the prize was used
+  redeemed_at  text,                       -- shop id where the prize was used
   stamps       jsonb not null default '{}', -- shop id -> count
   rewards_used jsonb not null default '{}'  -- shop id -> count
 );
@@ -58,7 +58,7 @@ create table prizes (
   id         bigint generated always as identity primary key,
   name       text not null,
   value      int not null default 0,
-  stock      int not null default 0,        -- how many are left
+  stock      int not null default 0,        -- how many in total. Left = stock - won
   collect_at text not null default '',
   added_by   text not null check (added_by in ('fruitbowl','council','street')),
   sort_order int not null default 0
@@ -100,17 +100,17 @@ begin
   insert into settings values ('code_style', 'qr');
 
   insert into prizes (name, value, stock, collect_at, added_by, sort_order) values
-    ('Free coffee',            5,  149, 'Main St Espresso',                       'fruitbowl', 1),
+    ('Free coffee',            5,  150, 'Main St Espresso',                       'fruitbowl', 1),
     ('Sweet treat',            5,   80, 'Gelato Lane',                            'fruitbowl', 2),
     ('Drink at a bar tonight', 10,  60, 'The Drover Bar, tonight only',           'street',    3),
     ('Shop voucher',           20,  30, 'The Corner Bookshop or Croydon Op Shop', 'street',    4),
     ('Dinner voucher',         25,  30, 'Lantern Thai',                           'council',   5),
     ('Big dining prize',      100,   3, 'Lantern Thai',                           'council',   6),
-    ('Croydon tote bag',        0, 200, 'The marquee desk, right now',            'fruitbowl', 7);
+    ('Croydon tote bag',        0, 200, 'the marquee desk, right now',            'fruitbowl', 7);
 
   insert into campaigns (title, month, blurb, posted_by, council, street, street_extra, traders, sort_order) values
     ('Tinsel & Thongs: a Croydon Summer Christmas', 'December 2026',
-     'A hot, silly, local Christmas. Shop on the street. Collect stamps. Win prizes.',
+     'An Aussie summer Christmas. Stamp trail, late-night Thursdays, Santa on a banana lounge.',
      'fruitbowl', 'approved', 'yes', 'Santa on a banana lounge, Saturday afternoons.',
      jsonb_build_object(
        'espresso', jsonb_build_object('status','in','offer','Free iced coffee upsize + a stamp'),
@@ -119,19 +119,19 @@ begin
        'optom',    jsonb_build_object('status','in','offer','Free sunnies fitting + a stamp')),
      1),
     ('Hot Days, Cool Street', 'January 2027',
-     'Beat the heat. Cool drinks, cold treats and shady spots on Main St.',
+     'Beat the heat. Cold drink deals, chill stops in shops, water stations.',
      'fruitbowl', 'approved', 'pending', '', '{}', 2),
     ('Back to School', 'February 2027',
-     'Help families get ready. Uniforms, books, glasses and a smile.',
+     'Shoes, books, haircuts, eye checks and lunchbox treats for families.',
      'fruitbowl', 'pending', 'pending', '', '{}', 3),
     ('Croydon Twilight Market', 'Friday 4 December 2026',
      'Shops stay open late. Stamps count double on the night.',
      'council', 'approved', 'pending', '', '{}', 4);
 
   insert into workshops (name, date, time, format, place, councils) values
-    ('Christmas in a box',           '2026-11-10', '6:30pm', 'Online',    'Link sent when you book', array['Maroondah','Knox']),
-    ('How to use My Main Street','2026-11-12', '2pm',    'Online',    'Link sent when you book', array['Maroondah']),
-    ('Phone photos that sell',       '2026-11-17', '10am',   'In person', 'Croydon, venue to be confirmed', array['Maroondah']);
+    ('Christmas in a box',            '2026-11-10', '18:30', 'Online',    'Google Meet link sent on booking', array['Maroondah','Knox']),
+    ('How to use My Main Street',     '2026-11-12', '14:00', 'Online',    'Google Meet link sent on booking', array['Maroondah']),
+    ('Phone photos that sell',        '2026-11-17', '10:00', 'In person', 'Croydon, venue to be confirmed',   array['Maroondah']);
 
   -- three demo customers
   insert into signups (code, name, created_at, stamps) values
@@ -211,8 +211,9 @@ begin
   if s.prize is not null then return _err(s.name || ' has already spun.'); end if;
   select * into p from prizes where id = p_prize for update;
   if not found then return _err('That prize is gone.'); end if;
-  if p.stock < 1 then return _err('That prize has run out.'); end if;
-  update prizes set stock = stock - 1 where id = p.id;
+  if p.stock - (select count(*) from signups where (prize->>'id')::bigint = p.id) < 1 then
+    return _err('That prize has run out.');
+  end if;
   update signups
      set prize = jsonb_build_object('id', p.id, 'name', p.name, 'value', p.value, 'collect_at', p.collect_at),
          spun_at = now()
@@ -228,20 +229,20 @@ begin
   if not found then return _err('No one has that code.'); end if;
   if s.prize is null then return _err('No prize to undo.'); end if;
   if s.redeemed then return _err('Already used. Cannot undo.'); end if;
-  update prizes set stock = stock + 1 where id = (s.prize->>'id')::bigint;
   update signups set prize = null, spun_at = null where code = p_code;
   return jsonb_build_object('ok', true);
 end $$;
 
-create or replace function redeem_prize(p_code text, p_shop_name text)
+drop function if exists redeem_prize(text,text);
+create or replace function redeem_prize(p_code text, p_shop text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare s signups;
 begin
   select * into s from signups where code = p_code for update;
   if not found then return _err('No one has that code.'); end if;
   if s.prize is null then return _err('No festival prize to use.'); end if;
-  if s.redeemed then return _err('Already used at ' || coalesce(s.redeemed_at, 'a shop') || '.'); end if;
-  update signups set redeemed = true, redeemed_at = _clean(p_shop_name, 60) where code = p_code;
+  if s.redeemed then return _err('Already used.'); end if;
+  update signups set redeemed = true, redeemed_at = _clean(p_shop, 30) where code = p_code;
   return jsonb_build_object('ok', true);
 end $$;
 

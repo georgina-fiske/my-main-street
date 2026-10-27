@@ -43,7 +43,7 @@ window.CONFIG = {
   // ---- Shops (made up). PIN is the number four times. ----
   shops: [
     { id: 'espresso', name: 'Main St Espresso',        type: 'Cafe',        pin: '1111' },
-    { id: 'thai',     name: 'Lantern Thai',            type: 'Restaurant',  pin: '2222' },
+    { id: 'lantern',  name: 'Lantern Thai',            type: 'Restaurant',  pin: '2222' },
     { id: 'drover',   name: 'The Drover Bar',          type: 'Bar',         pin: '3333' },
     { id: 'gelato',   name: 'Gelato Lane',             type: 'Dessert',     pin: '4444' },
     { id: 'books',    name: 'The Corner Bookshop',     type: 'Bookshop',    pin: '5555' },
@@ -54,13 +54,13 @@ window.CONFIG = {
 
   // ---- Campaign ideas ----
   ideas: [
-    { title: 'Tinsel & Thongs: a Croydon Summer Christmas', month: 'December 2026', blurb: 'A hot, silly, local Christmas. Shop on the street. Collect stamps. Win prizes.' },
-    { title: 'Hot Days, Cool Street', month: 'January 2027', blurb: 'Beat the heat. Cool drinks, cold treats and shady spots on Main St.' },
-    { title: 'Back to School', month: 'February 2027', blurb: 'Help families get ready. Uniforms, books, glasses and a smile.' },
-    { title: 'Love Local', month: 'February 2027', blurb: 'Show some love for the shops you like. Bring a friend. Get a stamp each.' },
-    { title: 'Easter Egg Hunt', month: 'April 2027', blurb: 'Kids hunt for eggs in shop windows. Each find earns a stamp.' },
-    { title: "Mother's Day Gift Guide", month: 'May 2027', blurb: 'Shops share gift ideas. Buy a gift, get a stamp and a card.' },
-    { title: 'Winter Warmers', month: 'June to August 2027', blurb: 'Hot soup, warm coffee and cosy deals on cold days.' },
-    { title: 'Croydon Halloween', month: 'October 2027', blurb: 'Dress up and trick or treat down Main St. Shops give out treats and stamps.' }
+    { title: 'Tinsel & Thongs: a Summer Christmas', month: 'December', blurb: 'An Aussie summer Christmas. Stamp trail, late-night Thursdays, Santa on a banana lounge.' },
+    { title: 'Hot Days, Cool Street', month: 'January', blurb: 'Beat the heat. Cold drink deals, chill stops in shops, water stations.' },
+    { title: 'Back to School', month: 'February', blurb: 'Shoes, books, haircuts, eye checks and lunchbox treats for families.' },
+    { title: 'Love Local', month: 'February', blurb: 'Date night on Main Street. Dinner, flowers and gift bundles.' },
+    { title: 'Easter Egg Hunt', month: 'April', blurb: 'Eggs hidden in shop windows. Each one you find is a stamp.' },
+    { title: "Mother's Day Gift Guide", month: 'May', blurb: 'A gift guide built from Main Street shops, with pamper pop-ups.' },
+    { title: 'Winter Warmers', month: 'June to August', blurb: 'Soup, hot chocolate and cosy nights. Fire pits and a lantern walk.' },
+    { title: 'Croydon Halloween', month: 'October', blurb: 'Shop-to-shop trick or treat and a costume parade.' }
   ]
 };
