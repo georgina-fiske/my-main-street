@@ -9,7 +9,7 @@ window.CONFIG = {
   },
 
   // ---- Names ----
-  siteName: 'Main Street Rewards',
+  siteName: 'My Main Street',
   streetName: 'Croydon Main Street',
   festivalName: 'Maroondah Festival',
   tagline: 'Shop local. Get stamps. Win prizes.',
@@ -21,20 +21,19 @@ window.CONFIG = {
 
   // ---- Colours ----
   colors: {
-    green: '#1F5A47',
-    gold: '#F2B632',
-    red: '#C3352B',
-    light: '#F4F8F6',
-    ink: '#14231D'
+    purple: '#560CC9',   // main
+    yellow: '#F9DE4B',
+    pink: '#EB4870',
+    ink: '#1E0B45',      // deep purple, for text
+    light: '#F6F2FD',    // light background
+    coral: '#F09066',    // extras
+    blue: '#3E88F7',
+    teal: '#6BE0CF'
   },
 
-  // ---- Logo (inline SVG, uses the brand colours) ----
-  logoSvg:
-    '<svg viewBox="0 0 40 40" width="36" height="36" aria-hidden="true">' +
-    '<rect width="40" height="40" rx="10" fill="#1F5A47"/>' +
-    '<path d="M8 24h24c0 6-5 10-12 10S8 30 8 24z" fill="#F2B632"/>' +
-    '<circle cx="14" cy="19" r="4" fill="#C3352B"/><circle cx="21" cy="17" r="4" fill="#F4F8F6"/>' +
-    '<circle cx="27" cy="19.5" r="3.6" fill="#F2B632"/></svg>',
+  // ---- Logo (small white logo, shown on the purple header) ----
+  logoUrl: '/img/fruitbowl-logo-white.png',
+  logoAlt: 'Fruitbowl',
 
   // ---- Rules ----
   stampsForReward: 6,

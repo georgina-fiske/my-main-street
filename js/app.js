@@ -83,6 +83,7 @@
     const total = U.stampTotal(s);
     const dots = Array.from({ length: C.stampsForDraw }, (_, i) => `<span class="dot${i < total ? ' on' : ''}"></span>`).join('');
     return `<div class="pass">
+      <div class="brandline">${esc(C.siteName)}</div>
       <div class="who">${esc(s.name)}</div>
       <div class="stamps" aria-label="${Math.min(total, 99)} of ${C.stampsForDraw} stamps">Stamps: ${total}/${C.stampsForDraw}</div>
       <div class="dots" aria-hidden="true">${dots}</div>
@@ -115,11 +116,11 @@
     if (!s || !s.prize || s.redeemed) return '';
     const p = s.prize;
     return `<div class="won-banner" role="status"><span class="big">You won! ${U.money(p.value)} ${esc(p.name)}</span>
-      Go to ${esc(p.collect_at)} to collect it. Show this screen. Use it by ${U.useBy(s.spun_at)}.</div>`;
+      Go to ${esc(p.collect_at)} to collect it. Show this screen. Use it by ${U.useBy(s.spun_at)}. We've emailed you a copy too.</div>`;
   }
 
   function phone(inner) {
-    return `<div class="phone"><div class="phone-notch"></div><div class="phone-screen">${inner}</div></div>`;
+    return `<div class="phone"><div class="phone-screen">${inner}</div></div>`;
   }
 
   function phoneContent(intro) {
@@ -262,9 +263,9 @@
       <section class="card">
         <h1>${esc(C.siteName)}</h1>
         <p><b>The idea.</b> One site for a whole shopping street. ${esc(C.org)} posts campaigns, like Christmas. The council or the street association backs a campaign. Then it goes straight to the shops. Shops tap "I'm in."</p>
-        <p><b>How customers get a stamp.</b> After paying, they scan the QR code on the counter, or tap the sticker. That's it. The shop does almost nothing.</p>
+        <p><b>How customers get a stamp.</b> After paying, they scan the QR code on the counter, or tap the sticker. It takes about 5 seconds. The shop does nothing. It works the same way as StampMe.</p>
         <p><b>How customers win.</b> 6 stamps at one shop gives that shop's reward. 10 stamps anywhere gives an entry in the big draw.</p>
-        <p><b>Later:</b> link your bank card so stamps happen when you pay.</p>
+        <p><b>Later:</b> link your bank card so stamps land automatically when you pay.</p>
         <p class="who-box"><b>This is a demo.</b> Shops and prizes are made up.</p>
       </section>
       <div class="grid cards">${cards.map((c) => `<article class="card startcard">
@@ -286,13 +287,13 @@
         <p class="muted small">A USB or Bluetooth scanner can type here. Press Enter.</p>
       </form>
       ${ui.desk.err ? `<p class="err" role="alert">${esc(ui.desk.err)}</p>` : ''}
-      ${s ? `<div class="deskstate">At the wheel: ${esc(s.name)} · ${esc(s.code)}</div>
-        ${prizes.map((p) => `<button class="prizebtn ${prizeClass(p)}" data-act="award" data-id="${p.id}" ${p.stock < 1 ? 'disabled' : ''}>
-          <span class="v">${U.money(p.value)}</span> ${esc(p.name)}<br><span class="small">${p.stock} left</span></button>`).join('')}` : ''}
+      <div class="deskstate">${s ? `At the wheel: ${esc(s.name)} · ${esc(s.code)}` : 'Scan a code to start.'}</div>
+      ${prizes.map((p) => `<button class="prizebtn ${prizeClass(p)}" data-act="award" data-id="${p.id}" ${!s || p.stock < 1 ? 'disabled' : ''}>
+        <span class="v">${U.money(p.value)}</span> ${esc(p.name)}<br><span class="small">${p.stock} left</span></button>`).join('')}
       ${last && last.prize ? `<div class="result" role="status"><b>${esc(last.name)} won ${esc(last.prize.name)}.</b>
         Collect at ${esc(last.prize.collect_at)}. Their phone shows it now.
         ${last.redeemed ? `<br><span class="muted">Already used, so it can't be undone.</span>` : ` · <a href="#" data-act="undo" data-code="${esc(last.code)}">Undo</a>`}</div>` : ''}
-      <p class="muted small">Phones are showing: ${U.styleName(st)}.</p>`;
+      <p class="muted small">Phones show the code as a ${U.styleWord(st)}. Change this on the Fruitbowl screen.</p>`;
     const marquee = `<section class="card marquee">
       <h2>Scan to join the ${esc(C.festivalName)}</h2>
       ${qrBox(location.origin + '/#/festival')}
@@ -386,7 +387,8 @@
         <div class="num"><b>${usedPrizes.length + rewardsUsed}</b><span>Prizes used here</span></div>
         <div class="num"><b>${U.money(spent)}</b><span>Prize money spent here</span></div></div>
       <section><h2>How you'll use it</h2><div class="grid cards">
-        <div class="card"><h3>Stamps</h3><p><b>Nothing to do.</b> Customers scan the counter QR or tap the sticker after paying. Same as StampMe.</p></div>
+        <div class="card"><h3>Stamps</h3><p><b>Nothing to do.</b> Customers scan the counter QR or tap the sticker after paying. It takes about 5 seconds. It works the same way as StampMe.</p>
+          <p class="muted small">Later: link your bank card so stamps land automatically when you pay.</p></div>
         <div class="card"><h3>Prizes and rewards</h3><p>Type your PIN on the customer's phone.</p><div class="pin" aria-label="Shop PIN ${sh.pin.split('').join(' ')}">${sh.pin}</div></div>
         <div class="card"><h3>Your counter sticker</h3><p>Print this QR for your counter.</p>${qrBox(location.origin + '/tap/' + sh.id)}
           <p class="small muted">Opens ${esc(location.origin)}/tap/${esc(sh.id)}</p></div></div></section>
@@ -412,7 +414,9 @@
         <section class="card"><h2>Your pass</h2>${phoneContent(false)}
           <p class="muted small" style="margin-top:12px">In the real version this pass lives in Apple or Google Wallet. No app needed.</p></section>
         <section class="card"><h2>Get a stamp after you pay</h2>
-          <p><b>In real life:</b> scan the QR on the counter or tap the sticker.</p>
+          <p><b>In real life:</b> after you pay, scan the QR on the counter or tap the sticker. It takes about 5 seconds. The shop does nothing. It works the same way as StampMe.</p>
+          <p class="muted small">Later: link your bank card so stamps land automatically when you pay.</p>
+          <p class="who-box"><b>6 stamps at one shop</b> = that shop's reward.<br><b>10 stamps anywhere</b> = the big draw.</p>
           ${s ? '' : '<p class="err">Sign up first to collect stamps.</p>'}
           <p class="muted">In this demo, these buttons act like scanning:</p><div class="shopbtns">${demo}</div>
           <p class="muted small" style="margin-top:10px">Real life: 1 stamp per shop per day. In the demo you can repeat, so you can try it.</p></section>
@@ -545,6 +549,8 @@
     if (s.prize) return `${s.name} has already spun.`;
     ui.desk = { code: s.code, last: null, err: '' };
     render();
+    const box = document.getElementById('desk-scan');
+    if (box) box.focus();
     return '';
   }
 
@@ -603,6 +609,8 @@
       if (r.ok) ui.desk = { code: null, last: code, err: '' };
       else ui.desk.err = r.error;
       render();
+      const box = document.getElementById('desk-scan');
+      if (box) box.focus();
     },
     async undo(b) {
       const r = await run('undo_prize', { p_code: b.dataset.code }, 'Undone.');
@@ -732,14 +740,16 @@
   window.addEventListener('hashchange', route);
 
   // ======== BOOT ========
-  document.getElementById('logo').innerHTML = C.logoSvg;
+  const logo = document.getElementById('logo');
+  logo.innerHTML = `<img src="${esc(C.logoUrl)}" alt="${esc(C.logoAlt)}">`;
+  logo.firstChild.onerror = () => { logo.textContent = C.logoAlt; logo.style.fontWeight = '800'; };
   document.getElementById('siteName').textContent = C.siteName;
   document.getElementById('streetName').textContent = C.streetName;
   document.title = C.siteName + ' demo';
   const root_ = document.documentElement.style;
-  root_.setProperty('--green', C.colors.green);
-  root_.setProperty('--gold', C.colors.gold);
-  root_.setProperty('--red', C.colors.red);
+  root_.setProperty('--purple', C.colors.purple);
+  root_.setProperty('--yellow', C.colors.yellow);
+  root_.setProperty('--pink', C.colors.pink);
   root_.setProperty('--light', C.colors.light);
   root_.setProperty('--ink', C.colors.ink);
 

@@ -1,4 +1,4 @@
--- Main Street Rewards: demo database.
+-- My Main Street: demo database.
 -- Run this whole file once in Supabase > SQL Editor.
 -- Safe to run again: it rebuilds everything and reloads the demo data.
 --
@@ -102,7 +102,7 @@ begin
   insert into prizes (name, value, stock, collect_at, added_by, sort_order) values
     ('Free coffee',            5,  149, 'Main St Espresso',                       'fruitbowl', 1),
     ('Sweet treat',            5,   80, 'Gelato Lane',                            'fruitbowl', 2),
-    ('Drink at a bar tonight', 10,  60, 'The Drover Bar (tonight only)',          'street',    3),
+    ('Drink at a bar tonight', 10,  60, 'The Drover Bar, tonight only',           'street',    3),
     ('Shop voucher',           20,  30, 'The Corner Bookshop or Croydon Op Shop', 'street',    4),
     ('Dinner voucher',         25,  30, 'Lantern Thai',                           'council',   5),
     ('Big dining prize',      100,   3, 'Lantern Thai',                           'council',   6),
@@ -130,7 +130,7 @@ begin
 
   insert into workshops (name, date, time, format, place, councils) values
     ('Christmas in a box',           '2026-11-10', '6:30pm', 'Online',    'Link sent when you book', array['Maroondah','Knox']),
-    ('How to use Main Street Rewards','2026-11-12', '2pm',    'Online',    'Link sent when you book', array['Maroondah']),
+    ('How to use My Main Street','2026-11-12', '2pm',    'Online',    'Link sent when you book', array['Maroondah']),
     ('Phone photos that sell',       '2026-11-17', '10am',   'In person', 'Croydon, venue to be confirmed', array['Maroondah']);
 
   -- three demo customers

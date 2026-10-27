@@ -1,4 +1,4 @@
-# Main Street Rewards: demo site
+# My Main Street: demo site
 
 A click-through demo for councils, street associations and vendors. Shops and prizes are made up. No logins.
 

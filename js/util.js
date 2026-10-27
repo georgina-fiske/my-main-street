@@ -51,11 +51,15 @@
   };
   U.codeBlock = (code, style) => {
     const e = U.esc(code);
-    if (style === 'number') return `<div class="codebox"><div class="codenum">${e}</div></div>`;
+    if (style === 'number') {
+      const digits = U.esc(String(code).replace(/^CMS-/, ''));
+      return `<div class="codebox"><div class="codenum">${digits}</div><div class="codesmall">Your number</div></div>`;
+    }
     if (style === 'barcode') return `<div class="codebox" role="img" aria-label="Barcode for ${e}">${U.barcodeSvg(code)}</div>`;
     return `<div class="codebox" role="img" aria-label="QR code for ${e}">${U.qrSvg(code, 4)}</div><div class="codesmall">${e}</div>`;
   };
   U.styleName = (s) => ({ qr: 'QR code', number: 'Number', barcode: 'Barcode' }[s] || 'QR code');
+  U.styleWord = (s) => ({ qr: 'QR code', number: 'number', barcode: 'barcode' }[s] || 'QR code');
 
   // ---- toast ----
   let toastTimer;
