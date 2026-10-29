@@ -3,37 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>My Main Street – Croydon (demo)</title>
-  <meta name="description" content="A demo of My Main Street. Shops and prizes are made up.">
+  <title>My Main Street (demo)</title>
+  <meta name="description" content="A demo of My Main Street. The shops and coupons are made up.">
   <meta name="theme-color" content="#560CC9">
-  <link rel="icon" href="/img/fruitbowl-logo-white.png" type="image/png">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23560CC9'/%3E%3Ccircle cx='20' cy='20' r='8' fill='%23F9DE4B'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-  <a class="skip" href="#app">Skip to content</a>
-  <header>
-    <div class="wrap">
-      <div class="top">
-        <span id="logo"></span>
-        <div>
-          <div class="street"><span id="streetName"></span> <span class="demo">Demo, not live yet</span></div>
-          <h1 id="siteName"></h1>
-        </div>
-      </div>
-      <nav id="nav" aria-label="Choose a screen"></nav>
-    </div>
-  </header>
-
-  <main class="wrap" id="app" tabindex="-1"></main>
-
-  <footer class="foot">
-    <p>This is a demo. Shops and prizes are made up. Nothing here is real.</p>
-    <button type="button" class="btn ghost small" data-act="reset">Reset demo</button>
-  </footer>
-
+  <a class="skip" href="#main">Skip to content</a>
+  <div id="app"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <dialog id="dlg" class="dlg"></dialog>
 
@@ -44,6 +25,13 @@
   <script src="/js/config.js"></script>
   <script src="/js/db.js"></script>
   <script src="/js/util.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="/js/messages.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/pages-customer.js"></script>
+  <script src="/js/pages-staff.js"></script>
+  <script src="/js/pages-admin.js"></script>
+  <script src="/js/pages-join.js"></script>
+  <script src="/js/pages-demo.js"></script>
+  <script src="/js/main.js"></script>
 </body>
 </html>

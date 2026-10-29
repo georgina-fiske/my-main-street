@@ -161,13 +161,14 @@
     root().innerHTML = page.render(ctx, brand);
     restoreFields(snap);
     document.title = (page.title ? page.title(ctx, brand) + ' – ' : '') + C.siteName + (brand.place ? ' – ' + brand.place : '') + ' (demo)';
+    ctx.rendered = true;
     if (page.after) page.after(ctx, brand);
   };
 
   let pending = false;
   function onData() {
     const page = App.pages[App.ctx.name];
-    if (page && page.onData) return page.onData(App.ctx);
+    if (page && page.onData && App.ctx.rendered) return page.onData(App.ctx);
     const a = document.activeElement;
     if (a && root().contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) {
       if (!pending) {

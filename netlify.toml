@@ -1,9 +1,10 @@
 [build]
   publish = "."
 
-# /tap/<shop-id> opens the app, which adds the stamp.
+# Every page address (/croydon, /c/CMS-1234, /demo/4, /desk ...) opens the app.
+# Real files (css, js, images) are still served as they are.
 [[redirects]]
-  from = "/tap/*"
+  from = "/*"
   to = "/index.html"
   status = 200
 
