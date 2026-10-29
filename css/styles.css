@@ -315,3 +315,5 @@ body.demo-body{overflow-x:hidden}
   .noprint{display:none!important}
 }
 @page{margin:12mm}
+
+@media (min-width:600px){body.embed .duo{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}

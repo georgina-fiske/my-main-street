@@ -78,9 +78,8 @@
         <span class="muted">When it's your turn, show this screen to the staff. They'll scan your code.</span></div>${codeCard(s, b)}`;
     }
     if (p.value === 0) {
-      return s.redeemed
-        ? `<div class="win" role="status"><b style="font-size:20px">You won a ${esc(p.name)}!</b><p>You've collected it at the desk. Enjoy!</p></div>${THANKS}${codeCard(s, b)}`
-        : `<div class="win" role="status"><b style="font-size:20px">You won a ${esc(p.name)}!</b><p>Collect it at the desk now.</p></div>${THANKS}${codeCard(s, b)}`;
+      // gifts are handed over at the desk and marked as used straight away
+      return `<div class="win" role="status"><b style="font-size:24px;line-height:1.15;display:block">You won a ${esc(p.name)}!</b><p>Collect it at the desk now.</p></div>${THANKS}${codeCard(s, b)}`;
     }
     if (s.redeemed) {
       return `<div class="statecard"><h3>Used</h3><p style="margin:0">Used at <b>${esc(d0.shopName(s.redeemed_at))}</b> on ${esc(U.when(s.redeemed_time))}.</p></div>

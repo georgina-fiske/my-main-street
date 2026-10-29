@@ -12,7 +12,7 @@
   const TZ = 'Australia/Melbourne';
   U.date = (iso) => {                // "2026-11-14" -> "Sat 14 Nov"
     const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+    return new Date(y, m - 1, d).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
   };
   U.time = (t) => {                  // "18:30" -> "6:30pm"
     if (!t) return '';
