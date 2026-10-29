@@ -16,7 +16,7 @@
   const needSignup = (small) => `<div class="devphone${small ? ' sm' : ''}"><div class="inner" style="padding:22px;display:flex;flex-direction:column;gap:12px;justify-content:center">
       <h2>Fill out the form first</h2><p>This step needs someone who has signed up. Go back and do the steps before it.</p>
       <a class="btn sun" href="/demo/5">Go to step 5: Fill out the form</a></div></div>`;
-  const couponPhone = (small) => (mySignup() ? phoneFrame('/c/' + myCode(), small, "The customer's phone") : needSignup(small));
+  const couponPhone = (small) => (myCode() ? phoneFrame('/c/' + myCode(), small, "The customer's phone") : needSignup(small));
 
   // ---------- the steps ----------
   const MSG_TAB_KEY = 'msr-msgtab';
@@ -63,7 +63,7 @@
       what: ['They add their logo and a heading.', 'They pick a main colour and a highlight colour. Text turns white or dark by itself so it is always easy to read.', 'The phone on the right changes as they type. The name is always My Main Street.'],
       tryit: 'Change the main colour and the heading. Watch the phone change.', preview: () => laptopFrame('/client?area=ringwood&tab=look', 'Make it theirs') },
     { part: 2, title: 'Scan the QR code', who: 'Anyone at the festival, on their own phone.',
-      what: ['They see the big sign at the marquee.', 'They open their phone camera.', 'They point it at the QR code and tap the link that pops up.', 'The street\'s sign-up page opens in their web browser. Nothing to download.'],
+      what: ['They see the big sign at the marquee: "Scan, spin and win."', 'Open your phone camera.', 'Point it at the QR code.', 'Tap the link that pops up. The street\'s page opens in their web browser. Nothing to download.'],
       tryit: 'Tap the QR code on the poster.', preview: () => phoneInner(App.posterHtml(HOME, { tap: true })) },
     { part: 2, title: 'Fill out the form', who: 'Customers, on their own phone.',
       what: ['They fill out the form: name, postcode, and how they want their coupon (email or text).', 'They tick the box to agree to the terms.', 'The same email or mobile can only sign up once per event. Trying again shows their existing code.', 'No smartphone? Staff fill out the form for them on the desk iPad.'],
@@ -72,14 +72,14 @@
     { part: 2, title: 'Join the line', who: 'Customers, on their own phone.',
       what: ['Their phone says "You\'re in! Now join the line for the wheel."', 'It shows their code as a QR code, a number or a barcode. Fruitbowl chooses which, in Fruitbowl HQ.', 'When it\'s their turn, they show this screen to the staff.'],
       tryit: 'Check the phone. Your code is on the screen.', preview: () => couponPhone(false) },
-    { part: 2, title: 'At the wheel', who: 'Prize desk staff on a laptop or iPad. The customer\'s phone is on the right.',
+    { part: 2, title: 'At the wheel', who: 'Prize desk staff on a laptop or iPad. The customer\'s phone is shown beside it.',
       what: ['The customer reaches the front of the line.', 'Staff tap "Scan their code" (camera), or use a scanner, or type the 4-digit number.', 'The customer\'s name shows. Then the prize buttons light up.', 'One tap on the prize the wheel landed on. Undo is there for mistakes.'],
       tryit: 'Tap "Scan their code", pick yourself, then tap a prize. Watch the phone.',
       preview: () => `<div class="pair">${laptopFrame('/desk', 'Prize desk')}${couponPhone(true)}</div>` },
     { part: 2, title: 'You won!', who: 'The customer. Use the tabs to see all three ways we tell them.',
       what: ['The phone shows a yellow banner with their coupon and code.', 'We email it too (or text, if they chose that).', 'A gift, like a tote bag, says "Collect it at the desk now."'],
       tryit: 'Click Screen, Email and Text above the phone.', tabs: true, preview: () => `${msgTabs()}<div id="msgpane">${messagePane()}</div>` },
-    { part: 2, title: 'Spend it at a shop', who: 'Shop staff, at the counter. The customer\'s coupon is on the left.',
+    { part: 2, title: 'Spend it at a shop', who: 'Shop staff, at the counter. The customer\'s coupon is shown beside the shop screen.',
       what: ['The customer shows their coupon at any participating shop on the street.', 'Staff log in to the shop screen with their shop PIN.', 'They type or scan the coupon code. Green means valid. Red says why not.', 'One tap on "Use it now". The shop, date and time are saved.'],
       tryit: 'Log in with 1111 (Main St Espresso). Type your code. Tap "Use it now". Then try the same code again.',
       preview: () => `<div class="pair">${couponPhone(true)}${phoneFrame('/shop', true, 'Shop screen')}</div>` },
@@ -88,7 +88,7 @@
       tryit: 'Press "Download spreadsheet".', preview: () => laptopFrame('/client?area=' + HOME + '&tab=reports', 'Reports') },
     { part: 3, title: 'Phase 2: the Wallet pass', who: 'Customers, after the festival.',
       what: ['The customer adds a pass to their phone\'s Wallet, like a concert ticket or boarding pass.', 'Shop on more than one street? They get a pass for each, stacked like cards. Each says My Main Street in that street\'s colours.', '6 stamps at one shop gets that shop\'s reward. 10 stamps anywhere gets them into the big draw.'],
-      tryit: 'Add a pass for another street. Tap a card to bring it to the front.', preview: () => (mySignup() ? phoneFrame('/wallet', false, 'Wallet pass') : needSignup(false)) },
+      tryit: 'Add a pass for another street. Tap a card to bring it to the front.', preview: () => (myCode() ? phoneFrame('/wallet', false, 'Wallet pass') : needSignup(false)) },
     { part: 3, title: 'Safety and privacy', who: 'Anyone. It is linked from the sign-up form.',
       what: ['A plain-words page says what we collect and why.', 'It says where it is stored (Sydney, Australia) and who can see it.', 'It says we never sell data, and how to delete it.'],
       tryit: 'Scroll the page.', preview: () => laptopFrame('/safety', 'Safety and privacy') }
@@ -99,6 +99,8 @@
   // ---------- the page ----------
   P.demo = {
     brand: () => App.fruitbowlBrand(),
+    // Pick up anything the preview frames just changed.
+    enter() { if (D.ready) D.load(); },
     title(ctx) { const n = stepNum(ctx); return n ? `Step ${n}: ${STEPS[n - 1].title}` : 'Demo'; },
     render(ctx) {
       const n = stepNum(ctx);

@@ -319,3 +319,5 @@ body.demo-body{overflow-x:hidden}
 @media (min-width:600px){body.embed .duo{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 .howcard .qr svg,.panel>.qr svg{width:150px;height:150px}
 .pass .qr svg{width:100%;height:auto}
+.pair .devlaptop{flex:1 1 340px;min-width:0}
+.pair .devphone.sm{width:250px;flex:0 0 auto}

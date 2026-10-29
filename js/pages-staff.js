@@ -50,7 +50,7 @@
           <label class="check"><input type="checkbox" name="optin"> They'd like news and offers (optional)</label>
           <label class="check"><input type="checkbox" name="terms"> They agree to the terms and the safety and privacy page</label>
           <p class="err" id="ss-err" role="alert" hidden></p>
-          <p style="margin-top:12px"><button class="btn" type="submit">Sign them up</button></p></form>`;
+          <p style="margin-top:12px"><button class="btn" type="submit">Fill out the form</button></p></form>`;
       const staffDone = staff ? `<div class="result" role="status"><p style="margin:0">Signed up: <b>${esc(staff.name)}</b></p>
           <div class="bigcode">${esc(staff.code)}</div><p class="muted" style="margin:4px 0 8px">Write this code down or print it for them. Then send them to the line.</p>
           <div class="row"><button class="btn small" data-act="print-page">Print</button><button class="btn ghost small" data-act="staff-next">Next person</button></div></div>` : '';
@@ -81,7 +81,7 @@
             <section class="panel" aria-label="Staff sign-up"><h3>No smartphone? Staff sign-up</h3>
               <p class="muted">Fill out the form for them on this iPad. Then print or write down their code.</p>
               ${staffDone}
-              <details ${staff ? '' : ''}><summary>${staff ? 'Sign up someone else' : 'Open the form'}</summary>${staffForm}</details>
+              <details><summary>${staff ? 'Fill out the form for someone else' : 'Open the form'}</summary>${staffForm}</details>
             </section>
           </div></main>${App.footer()}`;
     }

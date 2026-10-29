@@ -229,7 +229,7 @@
   };
   App.acts.tap = async (b) => {
     const s = d0.me();
-    if (!s) return U.toast('Sign up first to collect stamps.', true);
+    if (!s) return U.toast('Fill out the form first to collect stamps.', true);
     await addStamp(s, b.dataset.t);
   };
   async function addStamp(s, shopId) {
@@ -267,7 +267,7 @@
       ctx.done = true;
       const sh = d0.shop(ctx.params.shop), s = d0.me();
       if (!sh) { U.toast('That sticker is not part of this demo.', true); return App.go('/demo', true); }
-      if (!s) { U.toast('Sign up first to collect stamps.', true); return App.go('/' + sh.area, true); }
+      if (!s) { U.toast('Fill out the form first to collect stamps.', true); return App.go('/' + sh.area, true); }
       await addStamp(s, sh.id);
       App.go('/wallet', true);
     }
