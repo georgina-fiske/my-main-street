@@ -87,6 +87,15 @@
     }
   };
 
+  // Guided demo: /desk?scan=CMS-1234 opens with that customer already scanned.
+  P.desk.after = (ctx) => {
+    if (ctx.q.get('scan') && !ctx.scanDone) {
+      ctx.scanDone = true;
+      App.state.deskCode = U.normCode(ctx.q.get('scan'));
+      App.render();
+    }
+  };
+
   App.changes['desk-area'] = (el) => App.go('/desk?area=' + encodeURIComponent(el.value));
   App.forms.desk = (f) => deskPick(new FormData(f).get('code'));
   App.acts['desk-scan'] = () => {
@@ -168,7 +177,7 @@
           ${App.intro('The shop screen', 'For shop staff at the counter. Type or scan a customer\'s coupon code, check it, and use it with one tap.', 'Every shop on the street, on a phone or tablet.', 'Type 1111 to be Main St Espresso.')}
           <div class="panel"><h3>Log in with your shop PIN</h3>
             <form data-form="shoplogin"><label for="shop-pin">Your 4-digit shop PIN</label>
-              <input id="shop-pin" name="pin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" style="letter-spacing:.4em;font-size:28px;text-align:center">
+              <input id="shop-pin" name="pin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" value="${esc(ctx.q.get('pin') || '')}" style="letter-spacing:.4em;font-size:28px;text-align:center">
               <p class="err" id="sl-err" role="alert" hidden></p>
               <p style="margin-top:12px"><button class="btn big" type="submit">Log in</button></p></form>
             <p class="muted" style="font-size:13px">Demo PINs: Main St Espresso 1111, Lantern Thai 2222, The Drover Bar 3333, Gelato Lane 4444, The Corner Bookshop 5555, Croydon Op Shop 6666, Clear View Optometrist 7777, Smile Dental 8888.</p></div></main>${App.footer()}`;
@@ -231,7 +240,8 @@
     const r = await D.rpc('shop_login', { p_pin: pin }, { reload: false });
     if (!r.ok) { err.textContent = r.error; err.hidden = false; return; }
     saveShop({ id: r.shop, pin: String(pin).trim() });
-    App.state.shopCode = ''; App.render(); focusId('shop-code');
+    const c = App.ctx.q.get('code');   // guided demo: /shop?code=CMS-1234 types the code for you
+    App.state.shopCode = c ? U.normCode(c) : ''; App.state.justUsed = null; App.render(); focusId('shop-code');
   };
   App.acts['shop-logout'] = () => { saveShop(null); App.state.shopCode = ''; App.render(); };
   const shopCodeSet = (raw) => { App.state.shopCode = U.normCode(raw); App.state.justUsed = null; App.render(); return ''; };

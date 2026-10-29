@@ -318,6 +318,10 @@ body.demo-body{overflow-x:hidden}
 
 @media (min-width:600px){body.embed .duo{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 .howcard .qr svg,.panel>.qr svg{width:150px;height:150px}
-.pass .qr svg{width:100%;height:auto}
+.pass .qr svg{width:100%;max-width:220px;height:auto}
 .pair .devlaptop{flex:1 1 340px;min-width:0}
 .pair .devphone.sm{width:250px;flex:0 0 auto}
+/* inside the guided demo's frames: skip the explainer (the left side already says it) and fit narrow phones */
+body.embed .intro{display:none}
+.pair.two .devphone.sm{width:290px}
+@media (max-width:420px){.wrap h2{font-size:21px}.band .title{font-size:17px}.stat b{font-size:24px}.stats{gap:14px}}

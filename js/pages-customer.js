@@ -20,22 +20,25 @@
       const a = areaOr404(ctx);
       if (!a) return App.custPage(b, notFound('We can\'t find that street.'));
       const me = d0.me();
+      // Guided demo: show the form already filled in, so the next screen is one tap away.
+      if (ctx.q.get('prefill') && !ctx.prefill) ctx.prefill = { name: 'Sam', last: 'Smith', postcode: '3136', email: 'sam.' + Math.floor(Math.random() * 90000 + 10000) + '@example.com' };
+      const pf = ctx.prefill || {};
       const mine = me && me.area === a.id ? `<p class="who" style="margin:0">You're signed up as <b>${esc(me.name)}</b>. <a href="/c/${esc(me.code)}">See your coupon page</a></p>` : '';
       return App.custPage(b, `${mine}
         <h2>${esc(b.welcome)}</h2>
         <p class="muted" style="margin:0">Fill out the form, join the line for the wheel, and spend your coupon on ${esc(b.place)} today.</p>
         <form data-form="signup" data-area="${esc(a.id)}" novalidate>
-          <label for="f-name">First name</label><input id="f-name" name="name" required autocomplete="given-name" maxlength="40">
-          <label for="f-last">Last name</label><input id="f-last" name="last" required autocomplete="family-name" maxlength="40">
-          <label for="f-post">Postcode</label><input id="f-post" name="postcode" inputmode="numeric" maxlength="4" required autocomplete="postal-code">
+          <label for="f-name">First name</label><input id="f-name" name="name" required autocomplete="given-name" maxlength="40" value="${esc(pf.name || '')}">
+          <label for="f-last">Last name</label><input id="f-last" name="last" required autocomplete="family-name" maxlength="40" value="${esc(pf.last || '')}">
+          <label for="f-post">Postcode</label><input id="f-post" name="postcode" inputmode="numeric" maxlength="4" required autocomplete="postal-code" value="${esc(pf.postcode || '')}">
           <fieldset style="border:0;padding:0;margin:12px 0 0"><legend style="font-weight:700;font-size:15px">Send my coupon by:</legend>
             <div class="row" style="flex-wrap:nowrap"><label class="check" style="margin:4px 14px 0 0"><input type="radio" name="contact" value="email" checked> Email</label>
             <label class="check" style="margin:4px 0 0"><input type="radio" name="contact" value="text"> Text message</label></div></fieldset>
-          <label for="f-email">Email</label><input id="f-email" name="email" type="email" autocomplete="email" maxlength="120">
+          <label for="f-email">Email</label><input id="f-email" name="email" type="email" autocomplete="email" maxlength="120" value="${esc(pf.email || '')}">
           <label for="f-mob">Mobile</label><input id="f-mob" name="mobile" inputmode="tel" autocomplete="tel" placeholder="04xx xxx xxx" maxlength="14">
           <p class="muted" style="font-size:13px;margin:6px 0 0">Demo only: please use made-up details.</p>
           <label class="check" style="margin-top:12px"><input type="checkbox" name="optin"> Send me news and offers from ${esc(b.place)} (optional)</label>
-          <label class="check"><input type="checkbox" name="terms"> <span>I agree to the terms and the <a href="/safety" target="_blank" rel="noopener">safety and privacy page</a></span></label>
+          <label class="check"><input type="checkbox" name="terms" ${pf.name ? 'checked' : ''}> <span>I agree to the terms and the <a href="/safety" target="_blank" rel="noopener">safety and privacy page</a></span></label>
           <p class="err" id="su-err" role="alert" hidden></p>
           <p style="margin-top:14px"><button class="btn sun big" type="submit">Sign up</button></p>
         </form>`);
