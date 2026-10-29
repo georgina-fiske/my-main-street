@@ -102,7 +102,7 @@
       <nav aria-label="Pages">${links.map((l) => `<a href="${l[0]}"${l[2] === current ? ' aria-current="page"' : ''}>${l[1]}</a>`).join('')}</nav>
     </div></header>`;
   };
-  App.footer = () => `<footer class="foot"><p>This is a demo. The shops and coupons are made up. Nothing here is real.
+  App.footer = () => `<footer class="foot"><p>This is a demo. The shops and coupons are made up. Nothing here is real.${D.mode === 'local' ? ' Your changes stay in this browser.' : ''}
       <a href="/safety">Safety and privacy</a></p><button type="button" class="btn ghost small" data-act="reset">Reset demo</button></footer>`;
   App.page = (inner, opts) => `<main class="wrap${opts && opts.cls ? ' ' + opts.cls : ''}" id="main">${inner}</main>${App.footer()}`;
 

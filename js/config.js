@@ -2,6 +2,11 @@
 // Each area's own look (logo, colours, heading) lives in the database, set on the Client page.
 
 window.CONFIG = {
+  // ---- Where the data lives ----
+  // 'local'    = demo mode. Nothing to set up. Each visitor's changes stay in their own browser.
+  // 'supabase' = shared database (run sql/01_schema.sql first). Changes are shared and live.
+  mode: 'local',
+
   // ---- Supabase (public values only; safe to be in the front end) ----
   supabase: {
     url: 'https://zrhjvrcshvvekafocnlr.supabase.co',

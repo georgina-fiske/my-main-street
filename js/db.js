@@ -8,6 +8,7 @@
   };
   const listeners = [];
   const DB = {
+    listeners,
     ready: false,
     error: null,
     state: { settings: {}, areas: [], events: [], shops: [], signups: [], campaigns: [], prizes: [], workshops: [], bookings: [] },
@@ -57,6 +58,8 @@
   }
 
   DB.start = async function () {
+    // Demo mode: no database. Everything runs inside the visitor's own browser.
+    if (window.CONFIG.mode !== 'supabase' && window.LocalDB) { window.LocalDB.start(DB); return; }
     if (!configured()) { DB.error = 'not-configured'; listeners.forEach((fn) => fn()); return; }
     const c = window.CONFIG.supabase;
     sb = window.supabase.createClient(c.url, c.anonKey, { auth: { persistSession: false } });

@@ -110,7 +110,7 @@
         return `${head}<main class="wrap" id="main">
           <div class="hero"><h1>${esc(C.siteName)}</h1>
             <p>One website for a whole main street. At a festival, people scan a QR code, fill out a form, spin the wheel and win a coupon. They spend it at shops on their street. Council and the street association see what's working.</p>
-            <p style="font-size:15px;opacity:.85">This is a demo you can click through. The shops and coupons are made up. Nothing is sent to real people.</p>
+            <p style="font-size:15px;opacity:.85">This is a demo you can click through. The shops and coupons are made up. Nothing is sent to real people.${D.mode === 'local' ? ' It runs in your own browser, so what you do here stays on your device.' : ''}</p>
             <a class="btn sun big" href="/demo/1" style="max-width:320px;margin-top:10px">Start the demo →</a></div>
           <h2 style="margin:6px 0 12px">The demo, step by step</h2>
           <div class="partcards">${PARTS.map((name, pi) => `<div class="partcard"><h3>Part ${pi + 1}: ${name}</h3><ol start="${STEPS.findIndex((s) => s.part === pi + 1) + 1}">
