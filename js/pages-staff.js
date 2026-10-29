@@ -117,9 +117,9 @@
   };
   App.acts['staff-next'] = () => { App.state.staffCode = null; App.render(); };
   App.forms.staffsignup = async (f) => {
-    const d = Object.fromEntries(new FormData(f)), err = document.getElementById('ss-err');
-    const fail = (m) => { err.textContent = m; err.hidden = false; };
-    err.hidden = true;
+    const d = Object.fromEntries(new FormData(f));
+    const fail = (m) => { const e = document.getElementById('ss-err'); if (e) { e.textContent = m; e.hidden = false; } };
+    const e0 = document.getElementById('ss-err'); if (e0) e0.hidden = true;
     if (!d.name.trim() || !d.last.trim()) return fail('Please add their first and last name.');
     if (!/^\d{4}$/.test(d.postcode || '')) return fail('Postcode needs 4 numbers.');
     const text = d.contact === 'text';
@@ -268,7 +268,12 @@
   P.shopjoin = {
     brand: () => App.fruitbowlBrand(),
     title: () => 'Join as a shop',
-    async enter(ctx) { ctx.info = null; const r = await D.rpc('shop_invite', { p_token: ctx.params.token }, { reload: false }); ctx.info = r; if (App.ctx === ctx) App.render(); },
+    async after(ctx) {
+      if (ctx.asked) return;
+      ctx.asked = true;
+      ctx.info = await D.rpc('shop_invite', { p_token: ctx.params.token }, { reload: false });
+      if (App.ctx === ctx) App.render();
+    },
     render(ctx) {
       const r = ctx.info, S = App.state;
       let inner;
@@ -293,9 +298,9 @@
     }
   };
   App.forms.shopactivate = async (f) => {
-    const d = Object.fromEntries(new FormData(f)), err = document.getElementById('sj-err');
+    const d = Object.fromEntries(new FormData(f));
     const r = await App.run('shop_activate', { p_token: f.dataset.token, p_name: d.name, p_pin: d.pin });
-    if (!r.ok) { err.textContent = r.error; err.hidden = false; return; }
+    if (!r.ok) { const e = document.getElementById('sj-err'); if (e) { e.textContent = r.error; e.hidden = false; } return; }
     App.state.shopJoined = r.id; App.state.shopJoinedName = d.name;
     saveShop({ id: r.id, pin: d.pin });
     App.render();

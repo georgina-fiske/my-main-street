@@ -465,9 +465,9 @@
   };
   App.acts['hq-new'] = () => { App.state.hqNew = !App.state.hqNew; App.render(); focusId('g-name'); };
   App.forms.hqnew = async (f) => {
-    const d = Object.fromEntries(new FormData(f)), err = document.getElementById('g-err');
+    const d = Object.fromEntries(new FormData(f));
     const r = await App.run('area_create', { p_name: d.name, p_type: d.type, p_council_area: d.area, p_slug: d.slug || '', p_contact_name: d.cname || '', p_email: d.email, p_mobile: '', p_abn: '', p_by: 'fruitbowl' }, 'Area created.');
-    if (!r.ok) { err.textContent = r.error; err.hidden = false; return; }
+    if (!r.ok) { const e = document.getElementById('g-err'); if (e) { e.textContent = r.error; e.hidden = false; } return; }
     App.state.hqNew = false; App.state.hqInvite = r.id; App.render();
   };
   App.acts['area-status'] = (b) => App.run('area_set_status', { p_id: b.dataset.id, p_status: b.dataset.v }, b.dataset.v === 'live' ? 'Launched.' : 'Approved. They can finish setting up.');

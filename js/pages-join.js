@@ -17,10 +17,15 @@
   P.join = {
     brand: (ctx) => (joinArea(ctx) ? App.brandOf(joinArea(ctx)) : App.fruitbowlBrand()),
     title: () => 'Set up your area',
-    async enter(ctx) {
-      const id = ctx.q.get('area');
-      ctx.contact = null;
-      if (id) { const c = await D.read('area_contact', { p_id: id }); ctx.contact = c || {}; if (App.ctx === ctx) App.render(); }
+    // The saved contact details are private, so they come from a small read-only call once the data is ready.
+    async after(ctx) {
+      const id = joinArea(ctx);
+      if (!id || ctx.contactFetched === id) return;
+      ctx.contactFetched = id;
+      const c = await D.read('area_contact', { p_id: id });
+      ctx.contact = c || {};
+      App.skipRestore = true;   // show what was saved, not the empty boxes
+      if (App.ctx === ctx) App.render();
     },
     render(ctx, b) {
       const id = joinArea(ctx), a = id && d0.area(id), n = step();
@@ -73,9 +78,8 @@
   };
 
   App.forms.joinabout = async (f) => {
-    const d = Object.fromEntries(new FormData(f)), err = document.getElementById('j-err');
-    const fail = (m) => { err.textContent = m; err.hidden = false; };
-    err.hidden = true;
+    const d = Object.fromEntries(new FormData(f));
+    const fail = (m) => { const e = document.getElementById('j-err'); if (e) { e.textContent = m; e.hidden = false; } };
     let id = joinArea(App.ctx);
     let r;
     if (!id) {

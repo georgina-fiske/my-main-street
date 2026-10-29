@@ -159,7 +159,7 @@
     App.applyBrand(brand);
     const snap = snapshotFields();
     root().innerHTML = page.render(ctx, brand);
-    restoreFields(snap);
+    if (App.skipRestore) App.skipRestore = false; else restoreFields(snap);
     document.title = (page.title ? page.title(ctx, brand) + ' – ' : '') + C.siteName + (brand.place ? ' – ' + brand.place : '') + ' (demo)';
     ctx.rendered = true;
     if (page.after) page.after(ctx, brand);

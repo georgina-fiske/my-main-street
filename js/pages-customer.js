@@ -44,9 +44,8 @@
 
   App.forms.signup = async (f) => {
     const d = Object.fromEntries(new FormData(f));
-    const err = document.getElementById('su-err');
-    const fail = (m) => { err.textContent = m; err.hidden = false; };
-    err.hidden = true;
+    const fail = (m) => { const e = document.getElementById('su-err'); if (e) { e.textContent = m; e.hidden = false; } };
+    const e0 = document.getElementById('su-err'); if (e0) e0.hidden = true;
     if (!d.name.trim() || !d.last.trim()) return fail('Please add your first and last name.');
     if (!/^\d{4}$/.test(d.postcode || '')) return fail('Postcode needs 4 numbers.');
     const text = d.contact === 'text';
@@ -182,7 +181,7 @@
     render() {
       const s = d0.me();
       if (!s) {
-        return `<div class="cust"><div class="demo-strip">Demo, not live yet</div><div class="body"><div class="panel"><h2>Fill out the form first</h2>
+        return `<div class="cust"><div class="demo-strip">Demo, not live yet</div><div class="body" id="main"><div class="panel"><h2>Fill out the form first</h2>
           <p>Fill out the form on a phone to get your pass. Then come back here.</p><p><a class="btn sun" href="/${C.demoHomeArea}">Fill out the form</a></p></div></div></div>`;
       }
       const cards = cardsOf(s), others = d0.areas().filter((g) => !cards.includes(g.id));
@@ -192,7 +191,7 @@
       d0.shopsOf(s.area).forEach((sh) => { if (U.rewardsLeft(s, sh.id) > 0) ready.push(redeemBox('reward-' + sh.id, `${C.stampsForReward}-stamp reward from ${sh.name}`, null, s)); });
       const live = d0.campaignsOf(s.area).filter(d0.live);
       return `<div class="cust" style="background:#000">${walletView(s)}
-        <div class="body" style="background:var(--bg);border-radius:22px 22px 0 0;margin-top:-6px">
+        <div class="body" id="main" style="background:var(--bg);border-radius:22px 22px 0 0;margin-top:-6px">
           <div class="panel"><h3>My Main Street passes</h3><p class="muted">Shop on more than one street? You get a pass for each. They're all ${esc(C.siteName)}, each in that street's colours.</p>
             ${others.length ? `<div class="row"><select id="add-card" style="flex:1">${others.map((g) => `<option value="${esc(g.id)}">${esc(App.brandOf(g.id).place)}</option>`).join('')}</select><button class="btn small" data-act="add-card">Add pass</button></div>`
               : '<p class="muted">You have a pass for every street in the demo.</p>'}

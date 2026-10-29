@@ -116,7 +116,7 @@
           </main>${App.footer()}`;
       }
       const s = STEPS[n - 1], prev = n > 1 ? n - 1 : 0, next = n < STEPS.length ? n + 1 : 0;
-      return `${head}<div class="demoshell"><section class="demoleft" aria-label="Instructions">
+      return `${head}<div class="demoshell"><section class="demoleft" id="main" aria-label="Instructions">
           <p class="partlabel">Part ${s.part}: ${PARTS[s.part - 1]} · Step ${n} of ${STEPS.length}</p>
           <div class="stepbig"><span class="stepnum">${n}</span><div><h2>${esc(s.title)}</h2></div></div>
           <p class="who-line"><b>Who uses this:</b> ${s.who}</p>
