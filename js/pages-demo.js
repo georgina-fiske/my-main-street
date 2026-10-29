@@ -144,8 +144,10 @@
           <div class="hero"><h1>${esc(C.siteName)}</h1>
             <p>One website for a whole main street. At a festival, people scan a QR code, fill out a form, spin the wheel and win a coupon. They spend it at shops on their street. Council and the street association see what's working.</p>
             <p style="font-size:15px;opacity:.85">This is a demo you can click through. The shops and coupons are made up. Nothing is sent to real people.${D.mode === 'local' ? ' It runs in your own browser, so what you do here stays on your device.' : ''}</p>
-            <a class="btn sun big" href="/demo/1" style="max-width:320px;margin-top:10px">Start the demo →</a></div>
+            <div class="row" style="margin-top:10px"><a class="btn sun big" href="/demo/4" style="max-width:320px">Start the demo →</a>
+              <a class="btn ghost" href="/demo/1" style="color:inherit;border-color:rgba(255,255,255,.5)">Or begin with setting up an area</a></div></div>
           <h2 style="margin:6px 0 12px">The demo, step by step</h2>
+          <p class="muted" style="margin-top:-4px">The demo starts at the festival (Part 2, step 4). Part 1 shows how an area is set up first.</p>
           <div class="partcards">${PARTS.map((name, pi) => `<div class="partcard"><h3>Part ${pi + 1}: ${name}</h3><ol start="${STEPS.findIndex((s) => s.part === pi + 1) + 1}">
             ${STEPS.map((s, i) => (s.part === pi + 1 ? `<li><a href="/demo/${i + 1}">${esc(s.title)}</a></li>` : '')).join('')}</ol></div>`).join('')}</div>
           </main>${App.footer()}`;
