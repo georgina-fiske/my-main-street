@@ -1,56 +1,29 @@
-// One file for everything that changes when you white-label this site
-// for another council or street. Names, colours, logo, shops, ideas.
+// One file for what changes when you set this site up for a new brand or domain.
+// Each area's own look (logo, colours, heading) lives in the database, set on the Client page.
 
 window.CONFIG = {
   // ---- Supabase (public values only; safe to be in the front end) ----
   supabase: {
-    url: 'https://zrhjvrcshvvekafocnlr.supabase.co',      // e.g. https://abcdxyz.supabase.co
+    url: 'https://zrhjvrcshvvekafocnlr.supabase.co',
     anonKey: 'sb_publishable_wiCLPXeOi9XRP2X70tR8CQ_LVuMEkfM'
   },
 
   // ---- Names ----
-  siteName: 'My Main Street',
-  streetName: 'Croydon Main Street',
-  festivalName: 'Maroondah Festival',
-  tagline: 'Shop local. Get stamps. Win prizes.',
-  org: 'Fruitbowl Events',               // posts the campaigns
-  council: 'Maroondah',                  // the council this demo is for
-  councilLabel: 'Maroondah City Council',
-  streetOrg: 'Croydon Main Street Association',
-  allCouncils: ['Maroondah', 'Knox', 'Monash'],
+  siteName: 'My Main Street',               // always the same for every area
+  domain: 'mymainstreet.com.au',            // placeholder until the real domain is bought
+  runBy: 'Chaos Master',
+  homeCompany: 'Fruitbowl Events',
+  demoHomeArea: 'croydon',                  // the area the guided demo uses
 
-  // ---- Colours ----
+  // ---- Colours (Fruitbowl). Each area picks its own on the Client page. ----
   colors: {
-    purple: '#560CC9',   // main
-    yellow: '#F9DE4B',
-    pink: '#EB4870',
-    ink: '#1E0B45',      // deep purple, for text
-    light: '#F6F2FD',    // light background
-    coral: '#F09066',    // extras
-    blue: '#3E88F7',
-    teal: '#6BE0CF'
+    purple: '#560CC9', yellow: '#F9DE4B', pink: '#EB4870', ink: '#1E0B45', light: '#F6F2FD'
   },
-
-  // ---- Logo (small white logo, shown on the purple header) ----
-  logoUrl: '/img/fruitbowl-logo-white.png',
-  logoAlt: 'Fruitbowl',
 
   // ---- Rules ----
   stampsForReward: 6,
   stampsForDraw: 10,
-  prizeUseDays: 7,
-
-  // ---- Shops (made up). PIN is the number four times. ----
-  shops: [
-    { id: 'espresso', name: 'Main St Espresso',        type: 'Cafe',        pin: '1111' },
-    { id: 'lantern',  name: 'Lantern Thai',            type: 'Restaurant',  pin: '2222' },
-    { id: 'drover',   name: 'The Drover Bar',          type: 'Bar',         pin: '3333' },
-    { id: 'gelato',   name: 'Gelato Lane',             type: 'Dessert',     pin: '4444' },
-    { id: 'books',    name: 'The Corner Bookshop',     type: 'Bookshop',    pin: '5555' },
-    { id: 'opshop',   name: 'Croydon Op Shop',         type: 'Op shop',     pin: '6666' },
-    { id: 'optom',    name: 'Clear View Optometrist',  type: 'Optometrist', pin: '7777' },
-    { id: 'dental',   name: 'Smile Dental',            type: 'Dentist',     pin: '8888' }
-  ],
+  allCouncils: ['Maroondah', 'Knox', 'Monash'],
 
   // ---- Campaign ideas ----
   ideas: [

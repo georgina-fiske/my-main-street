@@ -1,11 +1,16 @@
-// Talks to Supabase. Reads tables, listens for live changes, calls the locked functions.
+// Talks to Supabase. Reads the shared tables, listens for live changes,
+// and calls the locked database functions.
 (function () {
-  const TABLES = ['settings', 'signups', 'campaigns', 'prizes', 'workshops', 'bookings'];
+  const TABLES = ['settings', 'areas', 'events', 'shops', 'signups', 'campaigns', 'prizes', 'workshops', 'bookings'];
+  const ORDER = {
+    settings: null, areas: 'sort_order', events: 'id', shops: 'sort_order', signups: 'created_at',
+    campaigns: 'sort_order', prizes: 'sort_order', workshops: 'date', bookings: 'id'
+  };
   const listeners = [];
   const DB = {
     ready: false,
     error: null,
-    state: { settings: {}, signups: [], campaigns: [], prizes: [], workshops: [], bookings: [] },
+    state: { settings: {}, areas: [], events: [], shops: [], signups: [], campaigns: [], prizes: [], workshops: [], bookings: [] },
     onChange(fn) { listeners.push(fn); }
   };
   let sb = null;
@@ -22,23 +27,16 @@
     if (loading) { again = true; return loading; }
     loading = (async () => {
       try {
-        const res = await Promise.all([
-          sb.from('settings').select('*'),
-          sb.from('signups').select('*').order('created_at'),
-          sb.from('campaigns').select('*').order('sort_order'),
-          sb.from('prizes').select('*').order('sort_order'),
-          sb.from('workshops').select('*').order('date'),
-          sb.from('bookings').select('*')
-        ]);
+        const res = await Promise.all(TABLES.map((t) => {
+          const q = sb.from(t).select('*');
+          return ORDER[t] ? q.order(ORDER[t]) : q;
+        }));
         const bad = res.find((r) => r.error);
         if (bad) throw bad.error;
-        const s = DB.state;
-        s.settings = Object.fromEntries(res[0].data.map((r) => [r.key, r.value]));
-        s.signups = res[1].data;
-        s.campaigns = res[2].data;
-        s.prizes = res[3].data;
-        s.workshops = res[4].data;
-        s.bookings = res[5].data;
+        TABLES.forEach((t, i) => {
+          if (t === 'settings') DB.state.settings = Object.fromEntries(res[i].data.map((r) => [r.key, r.value]));
+          else DB.state[t] = res[i].data;
+        });
         DB.ready = true;
         DB.error = null;
       } catch (e) {
@@ -63,7 +61,7 @@
     const c = window.CONFIG.supabase;
     sb = window.supabase.createClient(c.url, c.anonKey, { auth: { persistSession: false } });
     await load();
-    const ch = sb.channel('demo-live');
+    const ch = sb.channel('demo-live-' + Math.random().toString(36).slice(2, 8));
     TABLES.forEach((t) => ch.on('postgres_changes', { event: '*', schema: 'public', table: t }, soon));
     ch.subscribe();
     // Backup: refresh when the tab comes back, and every 30 seconds.
@@ -72,14 +70,26 @@
   };
 
   // Call one of the locked functions. Always returns {ok, error?, ...}.
-  DB.rpc = async function (name, args) {
+  // Pass {reload:false} for read-only calls.
+  DB.rpc = async function (name, args, opts) {
     try {
       const { data, error } = await sb.rpc(name, args || {});
       if (error) return { ok: false, error: 'Something went wrong. Please try again.' };
-      await load();
-      return data || { ok: true };
+      if (!opts || opts.reload !== false) await load();
+      return data === null || data === undefined ? { ok: true } : data;
     } catch (e) {
       return { ok: false, error: 'No connection. Please try again.' };
+    }
+  };
+
+  // Read-only call that returns raw data (arrays and so on).
+  DB.read = async function (name, args) {
+    try {
+      const { data, error } = await sb.rpc(name, args || {});
+      if (error) return null;
+      return data;
+    } catch (e) {
+      return null;
     }
   };
 
