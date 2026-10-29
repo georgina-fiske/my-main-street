@@ -50,7 +50,7 @@
     r.setProperty('--on-brand', U.textOn(b.color));
     r.setProperty('--sun', b.accent);
     r.setProperty('--on-sun', U.textOn(b.accent));
-    r.setProperty('--sun-soft', `color-mix(in srgb, ${b.accent} 22%, white)`);
+    r.setProperty('--sun-soft', `color-mix(in srgb, ${b.accent} 22%, var(--surface))`);   // a soft tint that follows light and dark mode
   };
 
   // ---------- routes ----------
