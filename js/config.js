@@ -10,8 +10,8 @@ window.CONFIG = {
 
   // ---- Supabase (public values only; safe to be in the front end) ----
   supabase: {
-    url: 'https://zrhjvrcshvvekafocnlr.supabase.co',
-    anonKey: 'sb_publishable_wiCLPXeOi9XRP2X70tR8CQ_LVuMEkfM'
+    url: 'https://ublipzmopexbrjdjnezp.supabase.co',
+    anonKey: 'sb_publishable_Ofz2teKTrBwgXmrJLdwUDA_pu2N4zIX'
   },
 
   // ---- Names ----
