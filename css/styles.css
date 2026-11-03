@@ -325,3 +325,19 @@ body.demo-body{overflow-x:hidden}
 body.embed .intro{display:none}
 .pair.two .devphone.sm{width:290px}
 @media (max-width:420px){.wrap h2{font-size:21px}.band .title{font-size:17px}.stat b{font-size:24px}.stats{gap:14px}}
+
+/* ---------- live site ---------- */
+.netbanner{background:#B3261E;color:#fff;padding:10px 16px;font-weight:700;text-align:center;position:sticky;top:0;z-index:30}
+.savebar{position:fixed;left:0;right:0;bottom:0;background:var(--sun);color:var(--on-sun);padding:10px 16px;font-weight:700;text-align:center;z-index:40}
+.savebar.bad{background:#B3261E;color:#fff}
+.meter .bar.big,.bar.big{height:18px;border-radius:9px}
+.meter.warn .bar i{background:#D9480F}
+.meter.warn{border-color:#D9480F}
+.wheelgrid,.deskgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.wheelbtn{border:0;border-radius:14px;padding:18px 10px;font:800 18px Montserrat,sans-serif;color:#fff;cursor:pointer;min-height:84px;text-shadow:0 1px 2px rgba(0,0,0,.35);box-shadow:0 2px 0 rgba(0,0,0,.2)}
+.wheelbtn:disabled{opacity:.4;cursor:not-allowed}
+.wheelbtn small{display:block;font-weight:600;font-size:13px;margin-top:4px}
+.friendly{background:var(--sun-soft);border-radius:12px;padding:12px 14px;margin:12px 0}
+.shopcode{font:800 44px/1 Montserrat,sans-serif;letter-spacing:.18em;text-align:center;background:var(--euc-soft);border-radius:14px;padding:18px;margin:10px 0}
+.dot-pill{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:middle}
+.sr{position:absolute;left:-9999px}
