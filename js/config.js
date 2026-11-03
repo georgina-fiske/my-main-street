@@ -16,7 +16,8 @@ window.CONFIG = {
 
   // ---- Names ----
   siteName: 'My Main Street',               // always the same for every area
-  domain: 'mymainstreet.com.au',            // placeholder until the real domain is bought
+  domain: 'my-mainstreet.com.au',           // the main address (admin, safety, demo)
+  baseDomain: 'my-mainstreet.com.au',       // each area lives at [area].my-mainstreet.com.au
   runBy: 'Chaos Master',
   homeCompany: 'Fruitbowl Events',
   demoHomeArea: 'croydon',                  // the area the guided demo uses

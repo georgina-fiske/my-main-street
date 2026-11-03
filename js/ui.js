@@ -17,6 +17,7 @@
   const D0 = {
     areas: () => st().areas,
     area: (id) => st().areas.find((a) => a.id === id) || null,
+    shops: () => st().shops,
     shopsOf: (areaId) => st().shops.filter((s) => s.area === areaId),
     activeShopsOf: (areaId) => st().shops.filter((s) => s.area === areaId && s.status === 'active'),
     shop: (id) => st().shops.find((s) => s.id === id) || null,
@@ -55,7 +56,45 @@
 
   // ---------- routes ----------
   const RESERVED_FIRST = ['demo', 'safety', 'join', 'shop', 'desk', 'client', 'hq', 'wallet', 'c', 'poster', 'stickers', 'tap', 'login', 'u'];
+  // ---- the live site: each area has its own address, [area].my-mainstreet.com.au ----
+  const dev = /(^|\.)localhost$/.test(location.hostname);
+  const portPart = location.port ? ':' + location.port : '';
+  App.hostArea = () => {
+    const h = location.hostname, base = C.baseDomain;
+    if (dev) return h.endsWith('.localhost') ? h.split('.')[0] : null;
+    if (h.endsWith('.' + base)) { const l = h.slice(0, -(base.length + 1)); return l && l !== 'www' && !l.includes('.') ? l : null; }
+    return null;
+  };
+  App.mainOrigin = () => (dev ? location.protocol + '//localhost' + portPart : 'https://' + C.baseDomain);
+  App.areaOrigin = (a) => (dev ? location.protocol + '//' + a + '.localhost' + portPart : 'https://' + a + '.' + C.baseDomain);
+
+  function parseLive() {
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    const q = new URLSearchParams(location.search);
+    const seg = path.split('/').filter(Boolean).map(decodeURIComponent);
+    const ha = App.hostArea();
+    const ctx = { path, q, seg, params: {}, embed: q.get('embed') === '1', name: 'notfound', area: ha, live: true };
+    const first = seg[0] || '';
+    if (first === 'login') ctx.name = 'login';
+    else if (first === 'set-password') ctx.name = 'setpw';
+    else if (first === 'u') { ctx.name = 'unsub'; ctx.params.token = seg[1]; }
+    else if (first === 'safety') ctx.name = 'safety';
+    else if (ha) {
+      if (!first) ctx.name = 'signup';
+      else if (first === 'c') { ctx.name = 'coupon'; ctx.params.code = U.normCode(seg[1]); ctx.params.token = q.get('k') || ''; }
+      else if (first === 'shops') ctx.name = 'shops';
+      else if (first === 'desk') ctx.name = 'desk';
+      else if (first === 'shop') ctx.name = seg[1] === 'claim' ? 'shopclaim' : 'shop';
+    } else {
+      if (!first) ctx.name = 'home';
+      else if (first === 'admin') ctx.name = 'admin';
+    }
+    return ctx;
+  }
+  App.livePages = {};
+
   function parse() {
+    if (D.live) return parseLive();
     const path = location.pathname.replace(/\/+$/, '') || '/';
     const q = new URLSearchParams(location.search);
     const seg = path.split('/').filter(Boolean).map(decodeURIComponent);
@@ -84,7 +123,7 @@
   // Keep ?embed=1 on every link inside a preview frame.
   // In a live site, pages under /demo (and any link inside them) run as a private demo, with ?demo=1.
   const isDemoPath = (p) => /^\/demo(\/|\?|$)/.test(p) || /[?&]demo=1/.test(p);
-  App.isDemo = () => D.mode === 'local';
+  App.isDemo = () => !D.live;
   App.href = (path) => {
     let p = path;
     if (C.mode === 'live' && App.isDemo() && !isDemoPath(p)) p += (p.includes('?') ? '&' : '?') + 'demo=1';
@@ -189,9 +228,11 @@
     });
   }
 
+  const pageFor = (ctx) => (D.live ? App.livePages[ctx.name] || App.livePages.notfound : App.pages[ctx.name] || App.pages.notfound);
+  App.pageFor = pageFor;
   App.render = () => {
     const ctx = App.ctx;
-    const page = App.pages[ctx.name] || App.pages.notfound;
+    const page = pageFor(ctx);
     document.body.classList.toggle('embed', ctx.embed);
     document.body.classList.toggle('demo-body', ctx.name === 'demo');
     if (!D.ready) {
@@ -215,7 +256,7 @@
 
   let pending = false;
   function onData() {
-    const page = App.pages[App.ctx.name];
+    const page = pageFor(App.ctx);
     if (page && page.onData && App.ctx.rendered) return page.onData(App.ctx);
     const a = document.activeElement;
     if (a && root().contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) {
@@ -231,7 +272,7 @@
   App.route = () => {
     if (App.ctx && App.ctx.stop) { App.ctx.stop(); App.ctx.stop = null; }   // stop refreshing the old page
     App.ctx = parse();
-    const page = App.pages[App.ctx.name];
+    const page = pageFor(App.ctx);
     if (page && page.enter) page.enter(App.ctx);
     App.render();
     if (!App.ctx.q.get('keepscroll')) window.scrollTo(0, 0);
