@@ -205,11 +205,11 @@
         ${sec(5, 'Who can see it', `<p>${esc(C.runBy)}, ${esc(C.homeCompany)} and Croydon Main Street Association, for Croydon only. Shops only see a coupon when it's shown to them.</p>`)}
         ${sec(6, 'We never sell your data', `<p>Never. Not to anyone.</p>`)}
         ${sec(7, 'How long we keep it', `<p>Until you unsubscribe or ask us to delete it. ${ph('lawyer to confirm this wording')}</p>`)}
-        ${sec(8, 'Your choices', `<p>Unsubscribe from any email, reply STOP to any text, or email ${ph('privacy address')} to see or delete your data.</p>`)}
+        ${sec(8, 'Your choices', `<p>Unsubscribe from any email, reply STOP to any text, or email hey@chaosmaster.com.au to see or delete your data.</p>`)}
         ${sec(9, 'How we keep it safe', `<p>A secure connection (HTTPS), staff logins, and each area only sees its own data.</p>`)}
         ${sec(10, 'Under 18s', `<p>Anyone under 18 needs a parent or guardian's OK to sign up and spin.</p>`)}
         ${sec(11, 'Coupon terms', `<p>One coupon per bill. Coupons are used in full: no change or cash back. Use it before the use-by date. It can be spent at any participating Croydon Main Street shop.</p>`)}
-        ${sec(12, 'Contact', `<p>${ph('email')}</p>`)}
+        ${sec(12, 'Contact', `<p><a href="mailto:hey@chaosmaster.com.au">hey@chaosmaster.com.au</a></p>`)}
       </main>${LB.footer()}`;
     }
   };
