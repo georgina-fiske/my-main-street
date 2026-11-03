@@ -254,7 +254,7 @@ begin
     tries := tries + 1;
     if tries > 80 then return _err('Please try again.'); end if;
   end loop;
-  tk := substr(md5(random()::text || clock_timestamp()::text || c), 1, 8);
+  tk := substr(md5(random()::text || clock_timestamp()::text || c), 1, 20);
   insert into signups (code, token, area, event, name, last_initial, contact)
   values (c, tk, p_area, ev.id, n, upper(left(l, 1)), p_contact);
   insert into signup_private (code, event, last_name, email, mobile, postcode, optin)
