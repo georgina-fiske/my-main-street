@@ -1,83 +1,92 @@
-# Going live with real customers
+# Going live: Maroondah Festival, Sunday 8 Nov 2026
 
-The site has two modes. Right now it is in **demo mode** (`mode: 'local'` in `js/config.js`): everything runs in the visitor's own browser. Follow these steps to switch the real sign-up form on. The guided demo at `/demo` keeps working as a private demo even after you go live.
+Do these in order. Each step is small. Tell Claude when a step is done.
 
-What changes when it is live:
+The site is in **demo mode** until step 12. Nothing real happens before then.
 
-- The customer form (`/croydon`) saves real sign-ups in your Supabase database.
-- Customers can only see **their own** coupon. Nobody can list other customers.
-- The prize desk, Client page, Fruitbowl HQ and the reports need a **staff login** (a link sent to your email, no password).
-- Shops use their 4-digit PIN, checked by the database.
-- When staff tap a prize, the customer is **emailed** their coupon (through Resend).
-- No "Demo" wording, no Reset button.
+## What you need (accounts)
 
-## A. Accounts (start today)
+| What | Why | Cost |
+|---|---|---|
+| Supabase **Pro**, project in **Sydney** | the shared database | about US$25 a month |
+| Netlify **Pro** (you have it) | the website and the send-message functions | already paid |
+| Resend | sends the emails | free to start |
+| ClickSend (recommended) | sends the texts | pay as you go, about 5 to 8 cents a text |
+| Domain `my-mainstreet.com.au` | the web address | you have it |
 
-1. **Domain.** Buy it (Netlify: Domains, Add a domain; or any registrar). A `.com.au` needs an ABN. Tell Claude the name.
-2. **Supabase.** Check the region is Sydney (Project Settings, General). Upgrade to the Pro plan, so the project doesn't pause and has daily backups.
-3. **Resend** (resend.com). Sign up, then **Domains, Add domain**. Resend shows some DNS records. Add them where the domain's DNS lives (in Netlify: Domains, your domain, DNS records). Wait until Resend says **Verified**. Then **API Keys, Create** with "Sending access" and copy it.
+## Steps
 
-## B. Set up the database (about 5 minutes)
+### 1. Check Supabase is in Sydney
+Supabase > Project Settings > General. Region should say Sydney (ap-southeast-2). If not, make a new project in Sydney and send Claude the new URL and key.
 
-1. Supabase, **SQL Editor**, **+ New query**. Paste all of `sql/live/01_schema.sql` and press **Run**. It should finish with no red error. (This is for real data. It wipes the project's tables, so only run it before real sign-ups start. It also switches off the demo's nightly reset, so real data is never reset.)
-2. New query. Open `sql/live/02_first_staff.sql`, change the email to the one you will log in with, paste it and press **Run**.
+### 2. Run the database file
+Supabase > SQL Editor > New query. Paste all of `sql/live/01_schema.sql`. Press Run. You should see `Success`.
+Warning: running it again wipes everything. Only run it before real sign-ups start.
 
-## C. Let people log in
+### 3. Make yourself Chaos Master
+Open `sql/live/02_first_staff.sql`. Change the email to yours (lowercase). Paste it in a new query. Run.
 
-Supabase, **Authentication**:
+### 4. Load Croydon
+Open `sql/live/03_croydon.sql`. Replace the example shop with the real shop list, one line per shop. Paste and Run. You can also add and change shops later in Admin.
 
-1. **URL Configuration.** Site URL: `https://YOUR-DOMAIN`. Under Redirect URLs add `https://YOUR-DOMAIN/login` (and your `...netlify.app/login` while testing).
-2. **Emails, SMTP Settings.** Switch on custom SMTP. This matters: Supabase's built-in email sender only allows a handful of emails an hour, so staff login links would stop arriving.
-   - Host `smtp.resend.com`, port `465`, username `resend`, password = your Resend API key.
-   - Sender email `login@YOUR-DOMAIN`, sender name `My Main Street`.
+### 5. Make your login
+Supabase > Authentication > Users > Add user > Create new user. Use your email and a strong password. Tick **Auto Confirm User**.
 
-## D. Netlify settings
+### 6. Tell Supabase the web addresses
+Authentication > URL Configuration.
+- Site URL: `https://my-mainstreet.com.au`
+- Redirect URLs, add: `https://my-mainstreet.com.au/**` and `https://croydon.my-mainstreet.com.au/**`
 
-1. **Domain management.** Add your custom domain. Netlify sets up HTTPS by itself.
-2. **Site configuration, Environment variables.** Add these four. Never paste them into chat or the code.
+### 7. Point the domain at Netlify
+Netlify > Domain management. Add `my-mainstreet.com.au` and add `croydon.my-mainstreet.com.au` as a domain alias. Follow Netlify's DNS steps at your domain host. Wait for the green padlock (HTTPS).
+If you buy `mymainstreet.com.au` too, add it as an alias and set it to redirect to the main address.
 
-   | Name | Value |
-   |---|---|
-   | `SUPABASE_URL` | your Project URL |
-   | `SUPABASE_SERVICE_ROLE_KEY` | the secret key: Supabase, Project Settings, API, `service_role` |
-   | `RESEND_API_KEY` | the key from step A3 |
-   | `SITE_ORIGIN` | `https://YOUR-DOMAIN` |
+### 8. Email (Resend)
+Resend > Domains > add `my-mainstreet.com.au`. Add the DNS records Resend shows you. Wait until it says Verified. Make an API key.
+Also in Supabase > Authentication > SMTP Settings, use Resend's SMTP details so staff invite emails send from your domain.
 
-3. **Deploys, Trigger deploy, Deploy site.** The email sender only sees new settings after a fresh deploy.
+### 9. Texts (ClickSend)
+Make a ClickSend account. Top up a little. Get your username and API key. Choose a sender name if you want one.
 
-## E. Switch it on
+### 10. Netlify settings
+Netlify > Site configuration > Environment variables. Add:
 
-Tell Claude the domain. Claude changes `mode: 'local'` to `mode: 'live'` and sets `domain` in `js/config.js`, and pushes.
+| Name | Value |
+|---|---|
+| `SUPABASE_URL` | your Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | the **secret** key (never share it, never put it in the code) |
+| `SITE_ORIGIN` | `https://my-mainstreet.com.au` |
+| `BASE_DOMAIN` | `my-mainstreet.com.au` |
+| `RESEND_API_KEY` | from Resend |
+| `SMS_PROVIDER` | `clicksend` |
+| `SMS_USERNAME` | your ClickSend username |
+| `SMS_API_KEY` | your ClickSend API key |
+| `SMS_FROM` | the sender name (optional) |
 
-## F. Set up your first street (about 20 minutes)
+Then Deploys > Trigger deploy > Deploy site.
 
-1. Go to `https://YOUR-DOMAIN/login`, enter your email, open the link. You land on Fruitbowl HQ.
-2. **Areas, Activate a new area.** Name it (for example Croydon Main Street Association). The web address comes from the first word, so `/croydon`. Then **Fill it in for them**.
-3. Follow the four steps: about you, look (logo, colours, heading), shops and prizes, check.
-   - In **Look**, set "Sent from" to `croydon@YOUR-DOMAIN` (a real address on your verified domain) and "Replies go to" to the client's own email.
-   - Coupons are **value over $0**. A **gift** is value $0 and is handed over at the desk.
-   - Each shop gets an invite link. Send it to them. They open it and choose their PIN.
-4. In **Client, Overview**, set the event date and "Coupons must be used by".
-5. Back in **HQ, Areas**, press **Launch**.
-6. **HQ, Staff.** Add the desk staff (role Desk) and the client's contact (role Client) by email.
-7. **Client, Overview.** Open the A3 poster and the counter stickers and print them ("Save as PDF" works too).
-8. Fill in the yellow placeholders on `/safety` and get it checked by a lawyer.
+### 11. Fill in /safety
+Send Claude your full name, ABN, privacy contact address and email. Claude puts them in. The page is marked `[to be checked by a lawyer]` until a lawyer has read it.
 
-## G. Dry run before the festival
+### 12. Flip the switch
+Tell Claude "go live". Claude sets `mode: 'live'` in `js/config.js` and pushes. Wait for the deploy.
 
-1. Phone: scan the poster QR code, fill out the form with your own email.
-2. Laptop: log in at `/desk`, scan or pick yourself, tap a prize. Your phone should show the win within a few seconds and an email should arrive.
-3. Shop: `/shop`, enter a shop PIN, type your code, **Use it now**. Try the same code again. It should say it's already used.
-4. Reports: Client, Reports, **Download spreadsheet**.
+### 13. Test it properly
+1. Go to `https://croydon.my-mainstreet.com.au/` on your phone. Sign up with your own email and mobile.
+2. Log in at `https://croydon.my-mainstreet.com.au/desk` (invite a desk login first: Admin > People > Invite someone). Find your number, tap a prize.
+3. Check your email or text arrives and the link opens your coupon.
+4. Open the shop one-pager link (`/shop/claim`), set up one shop, check the coupon, use it.
+5. In Admin, open Overview and download the spreadsheet.
+6. Fix anything odd, then open sign-ups in Admin > Overview > Open sign-ups.
 
-## What is not included yet
+### 14. Print
+Admin > Overview has two QR codes. Download the PNG for the marquee poster (sign-up) and the shop one-pager (shop set-up).
 
-- **Text messages.** Customers who choose "Text message" are told on the desk screen that texts aren't on yet, and their phone screen shows the coupon. Adding texts needs an Australian SMS account.
-- **Apple and Google Wallet passes.** The Wallet page says "coming soon" on the live site.
-- **Real inboxes** for the privacy and contact addresses on `/safety`.
+## On the day
+- Two iPads at `https://croydon.my-mainstreet.com.au/desk`, each logged in with its own desk login.
+- Watch the budget bar. It turns orange near $4,500 and the desk stops coupons at $5,000.
+- Wrong tap? Undo is on screen for 10 seconds.
+- Red bar at the top means the internet dropped. Taps are kept and retry on their own.
 
-## If something doesn't work
-
-- **Staff can't log in:** check Authentication, URL Configuration, and that custom SMTP is on.
-- **Email doesn't send:** Netlify, Functions, `send-coupon`, Logs. Common causes: the domain isn't verified in Resend, or an environment variable is missing (then redeploy). The coupon always still shows on the customer's phone.
-- **The desk says "Please log in":** the login expired. Log in again.
+## Not built yet (after Sunday)
+Paying shops back, the branded asset maker, the Chaos Master overview across all streets, switching the text sender name to `CroydonMS`, reminder messages.

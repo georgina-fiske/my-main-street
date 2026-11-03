@@ -25,6 +25,8 @@ Plain HTML, CSS and JS. No build step. Data lives in Supabase. Hosting is Netlif
 
 ## Going live with real customers
 
+Live pages (after `mode: 'live'`): on `croydon.my-mainstreet.com.au`: `/` sign-up, `/c/CMS-1234?k=...` coupon, `/shops`, `/desk`, `/shop`, `/shop/claim`. On `my-mainstreet.com.au`: `/admin`, `/safety`, `/demo`, `/login`.
+
 See **LAUNCH.md**. The live database is `sql/live/01_schema.sql`. The demo database file below (`sql/01_schema.sql`) is only for a shared demo and wipes everything, so never run it on the live project.
 
 ## Set up the demo (you do this once)
