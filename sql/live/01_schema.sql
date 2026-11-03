@@ -15,6 +15,14 @@
 --    signup_private (email, mobile, postcode, last name), shop_private (PIN, invite link),
 --    area_private (contact details), staff, download_log.
 
+-- The demo had a nightly reset. Real data must never be reset, so switch that off if it exists.
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.unschedule(jobid) from cron.job where jobname = 'nightly-demo-reset';
+  end if;
+end $$;
+
 -- ---------- clean slate ----------
 
 do $$

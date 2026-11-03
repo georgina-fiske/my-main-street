@@ -19,7 +19,7 @@ What changes when it is live:
 
 ## B. Set up the database (about 5 minutes)
 
-1. Supabase, **SQL Editor**, **+ New query**. Paste all of `sql/live/01_schema.sql` and press **Run**. It should finish with no red error. (This is for real data. It wipes the project's tables, so only run it before real sign-ups start.)
+1. Supabase, **SQL Editor**, **+ New query**. Paste all of `sql/live/01_schema.sql` and press **Run**. It should finish with no red error. (This is for real data. It wipes the project's tables, so only run it before real sign-ups start. It also switches off the demo's nightly reset, so real data is never reset.)
 2. New query. Open `sql/live/02_first_staff.sql`, change the email to the one you will log in with, paste it and press **Run**.
 
 ## C. Let people log in
