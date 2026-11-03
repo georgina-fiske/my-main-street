@@ -6,7 +6,8 @@
   const HOME = C.demoHomeArea;
 
   // ---------- device frames ----------
-  const emb = (path) => path + (path.includes('?') ? '&' : '?') + 'embed=1';
+  // Frames in the guided demo always run as a private demo (demo=1), even when the site itself is live.
+  const emb = (path) => path + (path.includes('?') ? '&' : '?') + 'embed=1' + (C.mode === 'live' ? '&demo=1' : '');
   const phoneFrame = (src, small, title) => `<div class="devphone${small ? ' sm' : ''}"><iframe src="${esc(emb(src))}" title="${esc(title || 'Phone preview')}"></iframe></div>`;
   const phoneInner = (html) => `<div class="devphone"><div class="inner">${html}</div></div>`;
   const laptopFrame = (src, title) => `<div class="devlaptop"><div class="bar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="addr">${esc(C.domain + src.split('?')[0])}</span></div>

@@ -250,7 +250,7 @@ begin
     return jsonb_build_object('ok', true, 'code', existing, 'existing', true);
   end if;
 
-  if (select count(*) from signups) >= 400 then return _err('The demo is full. Press Reset demo.'); end if;
+  if (select count(*) from signups) >= 50000 then return _err('Sign-ups are full. Please see the staff.'); end if;
   loop
     c := 'CMS-' || (1000 + floor(random() * 9000))::int;
     exit when not exists (select 1 from signups where code = c);

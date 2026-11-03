@@ -23,7 +23,11 @@ Plain HTML, CSS and JS. No build step. Data lives in Supabase. Hosting is Netlif
 | `/safety` | Safety and privacy |
 | `/tap/espresso` | A stamp from a shop's counter QR code or sticker |
 
-## Set up (you do this once)
+## Going live with real customers
+
+See **LAUNCH.md**. The live database is `sql/live/01_schema.sql`. The demo database file below (`sql/01_schema.sql`) is only for a shared demo and wipes everything, so never run it on the live project.
+
+## Set up the demo (you do this once)
 
 1. **Supabase.** Open **SQL Editor**, press **New query**, paste all of `sql/01_schema.sql`, press **Run**. It ends with `{"ok": true}`. It wipes and reloads the demo, so it is safe to run again whenever you want a fresh start.
 2. **Nightly reset.** Turn on `pg_cron` (Database > Extensions), then run `sql/02_nightly_reset.sql` once.

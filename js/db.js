@@ -111,7 +111,11 @@
     };
     // Keep a customer's page fresh: staff tap the prize, the phone changes within a few seconds.
     DB.watchPass = (code) => {
-      const id = setInterval(() => { if (!document.hidden) DB.fetchPass(code); }, 3500);
+      const id = setInterval(() => {
+        const cur = DB.state.signups.find((x) => x.code === code);
+        if (cur && cur.redeemed) return;           // nothing more will change, so stop asking
+        if (!document.hidden) DB.fetchPass(code);
+      }, 5000);
       return () => clearInterval(id);
     };
     DB.signIn = async (email, next) => {
