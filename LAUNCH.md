@@ -17,7 +17,7 @@ The site is in **demo mode** until step 12. Nothing real happens before then.
 ## Steps
 
 ### 1. Check Supabase is in Sydney
-Supabase > Project Settings > General. Region should say Sydney (ap-southeast-2). If not, make a new project in Sydney and send Claude the new URL and key.
+Supabase > Project Settings > General. Region must say Sydney (ap-southeast-2). Mumbai (ap-south-1) is wrong: make a new project in Sydney and send Claude the new URL and publishable key. Do this before step 2.
 
 ### 2. Run the database file
 Supabase > SQL Editor > New query. Paste all of `sql/live/01_schema.sql`. Press Run. You should see `Success`.

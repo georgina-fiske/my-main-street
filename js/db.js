@@ -25,6 +25,33 @@
   let again = false;
   const passes = {};     // a customer's own coupons, fetched by code + secret (customers cannot list everyone)
 
+
+  // One login for the main site and every area (croydon.my-mainstreet.com.au): keep the login in a cookie
+  // shared by the whole domain. Anywhere else (localhost, previews) it stays in the browser as normal.
+  function sharedStorage() {
+    const base = String(window.CONFIG.baseDomain || '').toLowerCase(), host = location.hostname.toLowerCase();
+    const local = { getItem: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, removeItem: (k) => { try { localStorage.removeItem(k); } catch (e) {} } };
+    if (!base || !(host === base || host.endsWith('.' + base))) return local;
+    const CH = 3000, attrs = '; domain=.' + base + '; path=/; SameSite=Lax; Secure';
+    const all = () => Object.fromEntries(document.cookie.split('; ').filter(Boolean).map((c) => { const i = c.indexOf('='); return [c.slice(0, i), c.slice(i + 1)]; }));
+    const drop = (k) => { const a = all(); Object.keys(a).forEach((n) => { if (n === 'msr.' + k + '.n' || n.indexOf('msr.' + k + '.') === 0) document.cookie = n + '=; max-age=0' + attrs; }); };
+    return {
+      getItem(k) {
+        const a = all(), n = parseInt(a['msr.' + k + '.n'], 10);
+        if (!n) return local.getItem(k);
+        let v = ''; for (let i = 0; i < n; i++) { if (a['msr.' + k + '.' + i] == null) return null; v += a['msr.' + k + '.' + i]; }
+        try { return decodeURIComponent(v); } catch (e) { return null; }
+      },
+      setItem(k, v) {
+        drop(k);
+        const e = encodeURIComponent(v), n = Math.ceil(e.length / CH), exp = '; max-age=' + 60 * 60 * 24 * 30;
+        for (let i = 0; i < n; i++) document.cookie = 'msr.' + k + '.' + i + '=' + e.slice(i * CH, (i + 1) * CH) + attrs + exp;
+        document.cookie = 'msr.' + k + '.n=' + n + attrs + exp;
+      },
+      removeItem(k) { drop(k); local.removeItem(k); }
+    };
+  }
+
   function configured() {
     const c = window.CONFIG.supabase;
     return c && /^https:\/\//.test(c.url) && c.anonKey && !/PASTE_/.test(c.anonKey);
@@ -160,7 +187,7 @@
     if (!isLive && window.LocalDB) { window.LocalDB.start(DB); return; }
     if (!configured()) { DB.error = 'not-configured'; notify(); return; }
     const c = window.CONFIG.supabase;
-    sb = window.supabase.createClient(c.url, c.anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+    sb = window.supabase.createClient(c.url, c.anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: sharedStorage() } });
     liveExtras();
     await refreshStaff();
     await load();
