@@ -198,10 +198,10 @@
         <p class="who" style="margin-top:0"><b>${ph('to be checked by a lawyer')}</b></p>
         <h1 style="font-size:32px;margin:14px 0 6px">Safety and privacy</h1>
         <p class="muted">The short version: we only collect what we need, we keep it in Australia, we never sell it, and you can ask us to delete it.</p>
-        ${sec(1, 'Who runs it', `<p>My Main Street is built and run by ${esc(C.runBy)}, an Australian business owned by Georgina ${ph('surname')}, sole trader, ABN ${ph('ABN')}, Melbourne. It's delivered with ${esc(C.homeCompany)} for Croydon Main Street.</p>`)}
+        ${sec(1, 'Who runs it', `<p>My Main Street is built and run by Georgina Fiske, trading as ${esc(C.runBy)}, sole trader, ABN 97 221 925 993, Melbourne. It's delivered with ${esc(C.homeCompany)} for Croydon Main Street.</p>`)}
         ${sec(2, 'What we collect', `<p>Your first and last name, email and mobile, postcode, your coupon, where and when it was used, and whether you want news. We send you messages through whichever one you choose at sign-up.</p>`)}
         ${sec(3, 'Why', `<p>To send your coupon, check it at shops, pay shops back, and (only if you say yes) send you news.</p>`)}
-        ${sec(4, 'Where it\'s stored', `<ul><li>Database: Sydney, Australia (Supabase)</li><li>Website: Netlify</li><li>Emails: Resend</li><li>Texts: ${ph('SMS provider')}</li></ul>`)}
+        ${sec(4, 'Where it\'s stored', `<ul><li>Database: Sydney, Australia (Supabase)</li><li>Website: Netlify</li><li>Emails: Resend</li><li>Texts: ClickSend</li></ul>`)}
         ${sec(5, 'Who can see it', `<p>${esc(C.runBy)}, ${esc(C.homeCompany)} and Croydon Main Street Association, for Croydon only. Shops only see a coupon when it's shown to them.</p>`)}
         ${sec(6, 'We never sell your data', `<p>Never. Not to anyone.</p>`)}
         ${sec(7, 'How long we keep it', `<p>Until you unsubscribe or ask us to delete it. ${ph('lawyer to confirm this wording')}</p>`)}
