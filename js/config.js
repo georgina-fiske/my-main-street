@@ -22,9 +22,9 @@ window.CONFIG = {
   homeCompany: 'Fruitbowl Events',
   demoHomeArea: 'croydon',                  // the area the guided demo uses
 
-  // ---- Colours (Fruitbowl). Each area picks its own on the Client page. ----
+  // ---- Colours: the My Main Street platform brand (Figma). Each area adds its own look in Admin > Look. ----
   colors: {
-    purple: '#560CC9', yellow: '#F9DE4B', pink: '#EB4870', ink: '#1E0B45', light: '#F6F2FD'
+    indigo: '#23003F', yellow: '#FFFDB4', red: '#F94500', lilac: '#BCACCE', ink: '#23003F', light: '#F7F4FA'
   },
 
   // ---- Rules ----

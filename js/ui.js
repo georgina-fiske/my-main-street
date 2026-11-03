@@ -38,20 +38,27 @@
   App.d = D0;
 
   // An area's look, with safe defaults. The name is always My Main Street.
-  const BRAND0 = { place: '', color: C.colors.purple, accent: C.colors.yellow, logo: '', welcome: 'Win something on Main Street', web: '' };
+  const BRAND0 = { place: '', color: C.colors.indigo, accent: C.colors.yellow, logo: '', welcome: 'Win something on Main Street', web: '' };
   App.brandOf = (areaId) => {
     const a = D0.area(areaId);
     return Object.assign({}, BRAND0, { place: a ? a.name : '' }, (a && a.brand) || {}, { appName: C.siteName });
   };
-  App.fruitbowlBrand = () => ({ place: '', color: C.colors.purple, accent: C.colors.yellow, logo: '', welcome: '', web: '', appName: C.siteName });
+  App.fruitbowlBrand = () => ({ place: '', color: C.colors.indigo, accent: C.colors.yellow, logo: '', welcome: '', web: '', appName: C.siteName });
 
+  // The platform frame (header) is always the My Main Street brand. An area's own colours drive everything
+  // else the UI colours: buttons, bars, tabs, badges, highlights. Every token is set together, every time.
+  const lum = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '')); if (!m) return 0; const n = parseInt(m[1], 16); const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(n >> 16) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255); };
+  const TOKENS = ['--euc', '--on-euc', '--euc-soft', '--sun', '--on-sun', '--sun-soft', '--tab-line'];
   App.applyBrand = (b) => {
-    const r = document.documentElement.style;
-    r.setProperty('--brand', b.color);
-    r.setProperty('--on-brand', U.textOn(b.color));
+    const r = document.documentElement.style, same = (x, y) => String(x || '').toLowerCase() === String(y || '').toLowerCase();
+    if (same(b.color, C.colors.indigo) && same(b.accent, C.colors.yellow)) { TOKENS.forEach((t) => r.removeProperty(t)); return; }   // platform look: the stylesheet (light and dark) decides
+    r.setProperty('--euc', b.color);
+    r.setProperty('--on-euc', U.textOn(b.color));
+    r.setProperty('--euc-soft', `color-mix(in srgb, ${b.color} 14%, var(--surface))`);
     r.setProperty('--sun', b.accent);
     r.setProperty('--on-sun', U.textOn(b.accent));
     r.setProperty('--sun-soft', `color-mix(in srgb, ${b.accent} 22%, var(--surface))`);   // a soft tint that follows light and dark mode
+    r.setProperty('--tab-line', lum(b.accent) > 0.6 && document.documentElement.getAttribute('data-theme') !== 'dark' ? b.color : b.accent);   // keep the tab underline visible on light backgrounds
   };
 
   // ---------- routes ----------

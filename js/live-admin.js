@@ -3,7 +3,7 @@
   const C = window.CONFIG, D = window.DB, U = window.U, App = window.App, esc = U.esc, money = U.money, d0 = App.d;
   if (!D.live) return;
   const LP = App.livePages, LB = App.live;
-  const TABS = [['overview', 'Overview'], ['signups', 'Sign-ups'], ['shops', 'Shops'], ['prizes', 'Prizes'], ['look', 'Look'], ['people', 'People']];
+  const TABS = [['overview', 'Overview'], ['signups', 'Sign-ups'], ['shops', 'Shops'], ['prizes', 'Prizes'], ['look', 'Look'], ['people', 'People'], ['pages', 'Site pages']];
   const LEVELS = { chaos: 'Chaos Master', fruitbowl: 'Fruitbowl', council: 'Council', street: 'Street Association', desk: 'Prize desk', shop: 'Shop' };
 
   const adminArea = (ctx) => {
@@ -66,6 +66,27 @@
   App.acts['ladmin-qr'] = (b) => LB.qrDownload(b.dataset.url, b.dataset.file, b.dataset.kind);
   App.acts['print-page'] = () => { document.body.classList.add('printing'); window.print(); setTimeout(() => document.body.classList.remove('printing'), 500); };
 
+
+  // Links that work on the real domain, and also on the Netlify preview address.
+  const pageUrl = (area, path) => (window.PREVIEW ? path + (path.includes('?') ? '&' : '?') + 'preview=' + (area || 'main') : (area ? App.areaOrigin(area) : App.mainOrigin()) + path);
+  function pagesTab(area) {
+    const a = d0.area(area), rows = [
+      ['Sign-up page', 'Customers scan the QR and sign up here.', pageUrl(area, '/')],
+      ['Coupon page', 'Each customer gets their own secret link when they sign up, so there is no fixed address. Sign up on the page above to see one.', pageUrl(area, '/')],
+      ['Shops list', 'The shops that take coupons.', pageUrl(area, '/shops')],
+      ['Prize desk', 'For the two iPads at the wheel. Staff log in.', pageUrl(area, '/desk')],
+      ['Shop set-up (claim)', 'A shop sets up its account here. This is the shop QR code.', pageUrl(area, '/shop/claim')],
+      ['Shop portal (log in)', 'A shop checks and uses coupons here.', pageUrl(area, '/shop')],
+      ['Safety and privacy', 'The safety page, shared by every street.', pageUrl(null, '/safety')],
+      ['Log in', 'Staff log in. One login works on the main site and every street.', pageUrl(null, '/login')],
+      ['Admin (this page)', 'Numbers, sign-ups, shops, prizes, look and people.', pageUrl(null, '/admin?area=' + encodeURIComponent(area))],
+      ['Demo', 'The guided demo with made-up shops. It never touches real data.', '/demo']
+    ];
+    return `<div class="panel"><h3>Every page on the site${a ? ' for ' + esc(a.name) : ''}</h3><p class="muted">Tap a link to open it. Pick a different street at the top to see its pages.</p>
+      <div class="table-wrap"><table style="min-width:0"><thead><tr><th>Page (tap to open)</th><th>What it is</th></tr></thead><tbody>
+      ${rows.map(([n, w, u]) => `<tr><td style="white-space:nowrap"><a href="${esc(u)}" target="_blank" rel="noopener"><b>${esc(n)}</b> ↗</a></td><td>${esc(w)}</td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+
   // ---------- the page ----------
   LP.admin = {
     brand: (ctx) => (d0.area(adminArea(ctx)) ? App.brandOf(adminArea(ctx)) : LB.fb()),
@@ -121,7 +142,8 @@
       else if (tab === 'look') {
         const d = App.draftFor(area);
         body = `<div class="grid duo"><section class="panel">${App.admin.lookForm(area, true)}</section><section><h3 style="margin-bottom:10px">Live preview</h3><div id="brand-preview">${App.admin.brandPreview(d)}</div></section></div>`;
-      } else if (tab === 'people') {
+      } else if (tab === 'pages') body = pagesTab(area);
+      else if (tab === 'people') {
         if (!hq) body = '<div class="panel"><p>Only Fruitbowl can invite people.</p></div>';
         else {
           const mine = LB.role();
