@@ -154,7 +154,17 @@
   };
 
   // The main address with nothing after it: send people to the demo.
-  LP.home = { brand: LB.fb, render() { return '<p style="padding:24px">One moment…</p>'; }, after() { location.replace('/demo'); } };
+  LP.home = {
+    brand: LB.fb,
+    render() {
+      if (!window.PREVIEW) return '<p style="padding:24px">One moment…</p>';
+      return `${LB.band('Preview', LB.fb(), [])}<main class="wrap" id="main" style="max-width:600px"><div class="panel"><h2>Preview of the real site</h2>
+        <p>This is the main site. Pick a page:</p>
+        <p><a class="btn" href="/admin">Admin</a> <a class="btn ghost" href="/login">Log in</a> <a class="btn ghost" href="/safety">Safety</a> <a class="btn ghost" href="/demo">Demo</a></p>
+        <p class="muted small">To see the Croydon pages, add <b>?preview=croydon</b> to the address.</p></div></main>${LB.footer()}`;
+    },
+    after() { if (!window.PREVIEW) location.replace('/demo'); }
+  };
   LP.notfound = {
     brand: LB.fb,
     title: () => 'Not found',
