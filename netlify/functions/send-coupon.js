@@ -47,7 +47,8 @@ async function sendSms(fetchFn, env, to, text) {
   return false;
 }
 
-exports.handler = async (event, _ctx, inject) => {
+exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netlify rejects 3-input handlers as the old callback style
+  const inject = rest[1];
   const fetchFn = (inject && inject.fetch) || fetch;
   const env = (inject && inject.env) || process.env;
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Use POST.' });
