@@ -29,6 +29,11 @@ Open `sql/live/02_first_staff.sql`. Change the email to yours (lowercase). Paste
 ### 4. Load Croydon
 Open `sql/live/03_croydon.sql`. Replace the example shop with the real shop list, one line per shop. Paste and Run. You can also add and change shops later in Admin.
 
+### 4b. Croydon's look and the lock-down
+Run these two, each in its own **new query** (they don't wipe anything):
+- `sql/live/04_croydon_look.sql` gives Croydon its logo and orange/gold colours.
+- `sql/live/05_lockdown.sql` hides the budget limit from the public.
+
 ### 5. Make your login
 Supabase > Authentication > Users > Add user > Create new user. Use your email and a strong password. Tick **Auto Confirm User**.
 
@@ -87,6 +92,10 @@ Admin > Overview has two QR codes. Download the PNG for the marquee poster (sign
 - Watch the budget bar. It turns orange near $4,500 and the desk stops coupons at $5,000.
 - Wrong tap? Undo is on screen for 10 seconds.
 - Red bar at the top means the internet dropped. Taps are kept and retry on their own.
+
+## After the festival
+- Retire the demo: point council, Fruitbowl and shops at the live site, then archive the demo.
+- Vendor pack (letter, branded poster, shop materials) once the real Croydon logo and Figma file are in.
 
 ## Not built yet (after Sunday)
 Paying shops back, the branded asset maker, the Chaos Master overview across all streets, switching the text sender name to `CroydonMS`, reminder messages.

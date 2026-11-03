@@ -16,7 +16,8 @@
   // Where each kind of login goes.
   LB.homeFor = () => {
     const r = LB.role();
-    if (['chaos', 'fruitbowl', 'council', 'street'].includes(r)) return App.mainOrigin() + '/admin';
+    // On an area's own address, staff stay there and land straight in that area's admin.
+    if (['chaos', 'fruitbowl', 'council', 'street'].includes(r)) return App.hostArea() ? '/admin' : (['council', 'street'].includes(r) && D.staff.area ? App.areaOrigin(D.staff.area) : App.mainOrigin()) + '/admin';
     if (r === 'desk') return App.areaOrigin(D.staff.area) + '/desk';
     if (r === 'shop') { const s = d0.shop(D.staff.shop); return App.areaOrigin(s ? s.area : C.demoHomeArea) + '/shop'; }
     return null;

@@ -73,8 +73,8 @@
     if (h.endsWith('.' + base)) { const l = h.slice(0, -(base.length + 1)); return l && l !== 'www' && !l.includes('.') ? l : null; }
     return null;
   };
-  App.mainOrigin = () => (dev ? location.protocol + '//localhost' + portPart : 'https://' + C.baseDomain);
-  App.areaOrigin = (a) => (dev ? location.protocol + '//' + a + '.localhost' + portPart : 'https://' + a + '.' + C.baseDomain);
+  App.mainOrigin = () => (window.PREVIEW ? location.origin : dev ? location.protocol + '//localhost' + portPart : 'https://' + C.baseDomain);
+  App.areaOrigin = (a) => (window.PREVIEW ? location.origin : dev ? location.protocol + '//' + a + '.localhost' + portPart : 'https://' + a + '.' + C.baseDomain);
 
   function parseLive() {
     const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -93,6 +93,7 @@
       else if (first === 'shops') ctx.name = 'shops';
       else if (first === 'desk') ctx.name = 'desk';
       else if (first === 'shop') ctx.name = seg[1] === 'claim' ? 'shopclaim' : 'shop';
+      else if (first === 'admin') ctx.name = 'admin';      // an area's own admin: always that area, no chooser
     } else {
       if (!first) ctx.name = 'home';
       else if (first === 'admin') ctx.name = 'admin';

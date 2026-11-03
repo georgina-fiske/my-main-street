@@ -7,6 +7,7 @@
   const LEVELS = { chaos: 'Chaos Master', fruitbowl: 'Fruitbowl', council: 'Council', street: 'Street Association', desk: 'Prize desk', shop: 'Shop' };
 
   const adminArea = (ctx) => {
+    if (ctx.area) return ctx.area;        // on croydon.my-mainstreet.com.au it is always Croydon
     const s = D.staff || {};
     if (['council', 'street'].includes(s.role) && s.area) return s.area;
     const q = ctx.q.get('area');
@@ -24,6 +25,41 @@
       used: coupons.filter((s) => s.redeemed).length,
       usedValue: coupons.filter((s) => s.redeemed).reduce((a, s) => a + Number(s.prize.value), 0)
     };
+  }
+
+
+  // ---------- dashboard pieces ----------
+  const ICON = {
+    people: '<path d="M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1"/><circle cx="9.5" cy="8" r="3.5"/><path d="M21 20v-1a4 4 0 0 0-3-3.9M16 4.2a3.5 3.5 0 0 1 0 6.6"/>',
+    ticket: '<path d="M3 9a2 2 0 0 0 0 6v3h18v-3a2 2 0 0 1 0-6V6H3z"/><path d="M13 6v12" stroke-dasharray="2 2"/>',
+    dollar: '<path d="M12 3v18M16 7.5c-.6-1.2-2-2-4-2-2.4 0-4 1.2-4 3s1.6 2.6 4 3 4 1.2 4 3-1.6 3-4 3c-2 0-3.5-.8-4-2"/>',
+    check: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/>',
+    cash: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="3"/>',
+    percent: '<path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>'
+  };
+  const card = (icon, num, label) => `<div class="mcard"><div class="mbadge" aria-hidden="true"><svg viewBox="0 0 24 24">${ICON[icon]}</svg></div><b>${esc(num)}</b><span class="l">${esc(label)}</span></div>`;
+
+  // A simple line chart of running totals: sign-ups and coupons won, by hour (or by day if it spans more than 2 days).
+  function chart(rows) {
+    if (!rows) return '<p class="muted">Loading…</p>';
+    const t = (x) => (x ? Date.parse(String(x).replace(' ', 'T') + ':00') : NaN);
+    const su = rows.map((r) => t(r.signed_up)).filter((n) => !isNaN(n)).sort((a, b) => a - b);
+    const won = rows.filter((r) => r.prize).map((r) => t(r.won)).filter((n) => !isNaN(n)).sort((a, b) => a - b);
+    if (!su.length) return '<p class="muted">No sign-ups yet. The chart appears with the first one.</p>';
+    const span = su[su.length - 1] - su[0], step = span > 2 * 864e5 ? 864e5 : 36e5, start = Math.floor(su[0] / step) * step;
+    const end = Math.max(su[su.length - 1], won.length ? won[won.length - 1] : 0), n = Math.max(2, Math.floor((end - start) / step) + 2);
+    const series = (a) => { const out = Array(n).fill(0); a.forEach((x) => { for (let i = Math.floor((x - start) / step); i < n; i++) out[i]++; }); return out; };
+    const A = series(su), B = series(won), max = Math.max(1, A[n - 1]);
+    const W = 640, H = 200, L = 38, R = 10, T = 10, Bt = 28, x = (i) => L + (i * (W - L - R)) / (n - 1), y = (v) => T + (H - T - Bt) * (1 - v / max);
+    const pts = (a) => a.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const lab = (ms) => new Date(ms).toLocaleString('en-AU', step === 864e5 ? { day: 'numeric', month: 'short' } : { weekday: 'short', hour: 'numeric', hour12: true });
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Running totals: ${A[n - 1]} sign-ups and ${B[n - 1]} coupons won">
+      ${[0, 0.5, 1].map((f) => `<line class="ax" x1="${L}" x2="${W - R}" y1="${y(max * f).toFixed(1)}" y2="${y(max * f).toFixed(1)}"/><text x="${L - 6}" y="${(y(max * f) + 4).toFixed(1)}" text-anchor="end">${Math.round(max * f)}</text>`).join('')}
+      <polygon points="${x(0)},${y(0)} ${pts(A)} ${x(n - 1)},${y(0)}" fill="var(--euc)" opacity=".12"/>
+      <polyline points="${pts(A)}" fill="none" stroke="var(--euc)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+      <polyline points="${pts(B)}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>
+      <text x="${L}" y="${H - 6}">${esc(lab(start))}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${esc(lab(start + (n - 1) * step))}</text></svg>
+      <p class="legend"><span><i style="background:var(--euc)"></i>Sign-ups (${A[n - 1]})</span><span><i style="background:var(--ink)"></i>Coupons won (${B[n - 1]})</span></p>`;
   }
 
   // ---------- the spreadsheet ----------
@@ -79,7 +115,7 @@
       ['Shop portal (log in)', 'A shop checks and uses coupons here.', pageUrl(area, '/shop')],
       ['Safety and privacy', 'The safety page, shared by every street.', pageUrl(null, '/safety')],
       ['Log in', 'Staff log in. One login works on the main site and every street.', pageUrl(null, '/login')],
-      ['Admin (this page)', 'Numbers, sign-ups, shops, prizes, look and people.', pageUrl(null, '/admin?area=' + encodeURIComponent(area))],
+      ['Admin (this page)', 'Numbers, sign-ups, shops, prizes, look and people.', pageUrl(area, '/admin')],
       ['Demo', 'The guided demo with made-up shops. It never touches real data.', '/demo']
     ];
     return `<div class="panel"><h3>Every page on the site${a ? ' for ' + esc(a.name) : ''}</h3><p class="muted">Tap a link to open it. Pick a different street at the top to see its pages.</p>
@@ -109,23 +145,28 @@
       if (!a) return `${LB.band('Admin', b, [])}<main class="wrap" id="main"><div class="panel"><h2>No street set up yet</h2><p>Run the Croydon set-up file in Supabase, or add a street.</p></div></main>${LB.footer()}`;
       const tab = TABS.some((t) => t[0] === ctx.q.get('tab')) ? ctx.q.get('tab') : 'overview';
       const hq = LB.isHq(), S = App.state;
-      const link = (t) => `/admin?area=${encodeURIComponent(area)}&tab=${t}`;
+      const link = (t) => (ctx.area ? `/admin?tab=${t}` : `/admin?area=${encodeURIComponent(area)}&tab=${t}`);
       let body = '';
       if (tab === 'overview') {
         const st = stats(area), limit = limitOf(), pct = limit ? Math.min(100, Math.round((st.value / limit) * 100)) : 0;
         const ev = d0.eventsOf(area).slice(-1)[0];
-        body = `<div class="stats">
-            <div class="stat"><b>${st.signups}</b><span>sign-ups</span></div><div class="stat"><b>${st.coupons}</b><span>coupons won</span></div>
-            <div class="stat"><b>${money(st.value)}</b><span>$ won</span></div><div class="stat"><b>${st.used}</b><span>coupons used</span></div>
-            <div class="stat"><b>${money(st.usedValue)}</b><span>$ used</span></div><div class="stat"><b>${st.small}</b><span>small prizes given</span></div></div>
-          <section class="panel meter ${st.value > limit * 0.9 ? 'warn' : ''}"><div class="row" style="justify-content:space-between"><b>${money(st.value)} of ${money(limit)} spent</b><span class="muted">${pct}%</span></div><div class="bar big"><i style="width:${pct}%"></i></div></section>
+        const pctUsed = st.coupons ? Math.round((st.used / st.coupons) * 100) : 0;
+        body = `<div class="mcards">
+            ${card('people', st.signups, 'Sign-ups')}${card('ticket', st.coupons, 'Coupons won')}${card('dollar', money(st.value), '$ won')}
+            ${card('check', st.used, 'Coupons used')}${card('cash', money(st.usedValue), '$ used')}${card('percent', pctUsed + '%', 'Of coupons used')}</div>
+          <div class="grid two">
+            <section class="panel"><h3>Sign-ups and coupons won</h3>${chart(reportFor(area))}</section>
+            <section class="panel meter ${st.value > limit * 0.9 ? 'warn' : ''}"><h3>Budget spent</h3><p class="muted" style="margin:4px 0 14px">Coupon value given out, against your limit.</p>
+              <div class="row" style="justify-content:space-between"><b style="font-size:26px">${money(st.value)}</b><span class="muted">of ${money(limit)} (${pct}%)</span></div>
+              <div class="bar big" role="img" aria-label="${pct}% of the budget spent"><i style="width:${pct}%"></i></div>
+              ${st.value > limit * 0.9 ? '<p style="margin:12px 0 0"><span class="tag no">Budget nearly spent</span></p>' : ''}</section></div>
           <div class="grid two gap">
             <section class="panel"><h3>Sign-ups</h3><p>${a.status === 'live' ? '<span class="tag">Open</span> Customers can sign up now.' : '<span class="tag wait">Closed</span> Customers see "Sign-ups are not open yet".'}</p>
               ${hq ? `<p><button class="btn ${a.status === 'live' ? 'ghost' : 'sun'}" data-act="ladmin-open" data-v="${a.status === 'live' ? 'setting up' : 'live'}">${a.status === 'live' ? 'Close sign-ups' : 'Open sign-ups'}</button></p>` : ''}
               <h3 style="margin-top:14px">The festival</h3>${ev ? `<form data-form="levent" data-id="${ev.id}" class="row" style="align-items:flex-end">
                 <div style="flex:2;min-width:150px"><label for="ev-name">Event</label><input id="ev-name" name="name" value="${esc(ev.name)}" maxlength="80"></div>
-                <div style="flex:1;min-width:130px"><label for="ev-date">Date</label><input id="ev-date" name="starts" type="date" value="${esc(ev.starts_on)}"></div>
-                <div style="flex:1;min-width:130px"><label for="ev-use">Use coupons by</label><input id="ev-use" name="use_by" type="date" value="${esc(ev.use_by)}"></div>
+                <div style="flex:1;min-width:140px"><label for="ev-date">Date</label><input id="ev-date" name="starts" type="date" value="${esc(ev.starts_on)}"></div>
+                <div style="flex:1;min-width:140px"><label for="ev-use">Use coupons by</label><input id="ev-use" name="use_by" type="date" value="${esc(ev.use_by)}"></div>
                 <button class="btn" type="submit">Save</button></form>` : '<p class="muted">No event yet.</p>'}</section>
             <section class="panel"><h3>The wheel</h3>${wheelTable(area, false)}</section></div>
           <div class="grid two gap">${qrCard('Sign-up page (marquee poster)', App.areaOrigin(area), area + '-signup-qr')}${qrCard('Shop set-up (shop one-pager)', App.areaOrigin(area) + '/shop/claim', area + '-shop-qr')}</div>
@@ -153,7 +194,7 @@
               <div style="flex:1;min-width:150px"><label for="iv-name">Name</label><input id="iv-name" name="name" maxlength="80"></div>
               <div style="flex:2;min-width:200px"><label for="iv-email">Email</label><input id="iv-email" name="email" type="email" required></div>
               <div style="flex:1;min-width:150px"><label for="iv-role">Level</label><select id="iv-role" name="role">${levels.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
-              <div style="flex:1;min-width:170px"><label for="iv-area">Street</label><select id="iv-area" name="area">${d0.areas().map((x) => `<option value="${esc(x.id)}" ${x.id === area ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+              ${ctx.area ? `<input type="hidden" name="area" value="${esc(area)}">` : `<div style="flex:1;min-width:170px"><label for="iv-area">Street</label><select id="iv-area" name="area">${d0.areas().map((x) => `<option value="${esc(x.id)}" ${x.id === area ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>`}
               <button class="btn" type="submit">Send invite</button></form>
             <p class="small muted">Fruitbowl, Chaos Master: every street. Council and Street Association: their own street only. Prize desk: the prize desk for one street. Shops set up their own accounts from the shop one-pager.</p>
             <p class="err" id="iv-err" role="alert" hidden></p><p class="ok" id="iv-ok" role="status" hidden></p></div>
@@ -161,9 +202,9 @@
               ${S.people.map((x) => `<tr><td>${esc(x.email)}</td><td>${esc(LEVELS[x.role] || x.role)}</td><td>${esc(x.shop || x.area || 'All')}</td><td>${x.email === (D.user || {}).email ? '<span class="muted">You</span>' : `<button class="btn ghost small" data-act="ladmin-remove" data-email="${esc(x.email)}">Remove access</button>`}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No one yet.</td></tr>'}</tbody></table></div>` : '<p class="muted">Loading…</p>'}</div>`;
         }
       }
-      return `${LB.band('Admin', b, [['/admin', 'Admin', true]])}<main class="wrap" id="main">
+      return `${LB.band('Admin', b, [['/admin', 'Admin', true]])}<main class="wrap dash" id="main">
         <div class="row" style="justify-content:space-between;margin-bottom:6px">
-          ${hq ? `<div><label for="ad-area" style="margin:0">Street</label><select id="ad-area" data-change="ladmin-area" style="max-width:340px">${d0.areas().map((x) => `<option value="${esc(x.id)}" ${x.id === area ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>` : `<b>${esc(a.name)}</b>`}
+          ${hq && !ctx.area ? `<div><label for="ad-area" style="margin:0">Street</label><select id="ad-area" data-change="ladmin-area" style="max-width:340px">${d0.areas().map((x) => `<option value="${esc(x.id)}" ${x.id === area ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>` : `<b>${esc(a.name)}</b>`}
           <span class="tag ${a.status === 'live' ? '' : 'wait'}">${a.status === 'live' ? 'Sign-ups open' : 'Sign-ups closed'}</span></div>
         ${LB.netBanner('what you were doing')}
         <nav class="tabsbar" aria-label="Admin">${TABS.map((t) => `<a href="${link(t[0])}"${t[0] === tab ? ' aria-current="page"' : ''}>${t[1]}</a>`).join('')}</nav>

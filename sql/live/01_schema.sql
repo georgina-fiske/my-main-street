@@ -198,6 +198,11 @@ create function _can_desk(a text) returns boolean
 language sql stable security definer set search_path = public as $$
   select _can_manage(a) or exists (select 1 from staff where email = _me() and role = 'desk' and area = a)
 $$;
+-- is this login a staff member (not a shop)?
+create function _is_staff() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from staff where email = _me() and role <> 'shop')
+$$;
 -- the shop this login belongs to (null if not a shop login)
 create function _my_shop() returns text
 language sql stable security definer set search_path = public as $$
@@ -708,11 +713,14 @@ alter table download_log    enable row level security;
 do $$
 declare t text;
 begin
-  foreach t in array array['settings','areas','events'] loop
+  foreach t in array array['areas','events'] loop
     execute format('drop policy if exists "public read" on %I', t);
     execute format('create policy "public read" on %I for select using (true)', t);
   end loop;
 end $$;
+-- Settings: the public sees only the code style. The budget limit is for staff.
+drop policy if exists "public read" on settings;
+create policy "public read" on settings for select using (key = 'code_style' or _is_staff());
 drop policy if exists "public read" on shops;
 create policy "public read" on shops for select using (not hidden);
 drop policy if exists "staff read" on shops;
@@ -734,7 +742,7 @@ begin
     grant select on settings, areas, events, shops to anon, authenticated;
     grant select on prizes, signups to authenticated;
     -- the table rules call these, so the caller needs to be able to run them
-    grant execute on function _me(), _is_chaos(), _is_hq(), _can_manage(text), _can_desk(text), _my_shop() to anon, authenticated;
+    grant execute on function _me(), _is_chaos(), _is_hq(), _can_manage(text), _can_desk(text), _is_staff(), _my_shop() to anon, authenticated;
     -- anyone: the customer form, their own coupon, "Shop: use this coupon" on their phone, unsubscribe
     grant execute on function
       signup(text,text,text,text,text,text,text,boolean,boolean), get_pass(text,text),
