@@ -7,7 +7,7 @@
   // =====================================================================
   // PRIZE DESK  (/desk)
   // =====================================================================
-  const deskArea = (ctx) => (d0.area(ctx.q.get('area')) ? ctx.q.get('area') : C.demoHomeArea);
+  const deskArea = (ctx) => App.areaFor(ctx);
   const curArea = () => deskArea(App.ctx);
 
   function deskPick(raw) {
@@ -22,6 +22,7 @@
     title: () => 'Prize desk',
     render(ctx, b) {
       const area = deskArea(ctx), S = App.state;
+      if (!App.can('desk', area)) return App.gate('Prize desk', 'desk');
       const cur = S.deskCode ? d0.signup(S.deskCode) : null;
       const wrongArea = cur && cur.area !== area;
       const ok = cur && !wrongArea;
@@ -34,6 +35,7 @@
 
       const result = last && last.prize ? `<div class="who" role="status">${esc(last.name)} won <b>${esc(last.prize.name)}</b>.
         ${last.prize.value === 0 ? 'Hand it over now.' : `Their phone shows it now. They'll get it by ${last.contact === 'text' ? 'text' : 'email'} too.`}
+        ${S.notice ? `<br><span class="muted">${esc(S.notice)}</span>` : ''}
         ${last.redeemed && last.redeemed_at !== 'desk' ? '<br><span class="muted">Already used, so it can\'t be undone.</span>' : ` <button class="btn ghost small" data-act="desk-undo">Undo</button>`}</div>` : '';
 
       const staffForm = `<form data-form="staffsignup" data-area="${esc(area)}" novalidate>
@@ -59,8 +61,8 @@
         <main class="wrap" id="main">
           ${App.intro('The prize desk', `At the wheel. People join the line in person. Staff scan each phone, then tap the prize the wheel landed on.${ev ? ' Event: <b>' + esc(ev.name) + '</b>.' : ''}`,
             'Fruitbowl and street association staff at the marquee, on a laptop or iPad.', 'Tap Scan their code and pick someone. Then tap a prize.')}
-          <div class="row" style="margin-bottom:12px"><label for="desk-area" style="margin:0">Street</label>
-            <select id="desk-area" data-change="desk-area" style="max-width:320px">${liveAreas.map((a) => `<option value="${esc(a.id)}" ${a.id === area ? 'selected' : ''}>${esc(App.brandOf(a.id).place)}</option>`).join('')}</select></div>
+          ${App.isDemo() || (D.staff || {}).role === 'fruitbowl' ? `<div class="row" style="margin-bottom:12px"><label for="desk-area" style="margin:0">Street</label>
+            <select id="desk-area" data-change="desk-area" style="max-width:320px">${liveAreas.map((a) => `<option value="${esc(a.id)}" ${a.id === area ? 'selected' : ''}>${esc(App.brandOf(a.id).place)}</option>`).join('')}</select></div>` : ''}
           <div class="grid two">
             <section class="panel" aria-label="At the wheel">
               <button class="btn sun big" data-act="desk-scan">Scan their code</button>
@@ -111,9 +113,14 @@
     if (d0.left(p) <= 0) return U.toast(p.name + ' has run out', true);
     const r = await App.run('award_prize', { p_code: cur.code, p_prize: p.id });
     if (r.ok) {
-      App.state.lastAward = cur.code; App.state.deskCode = '';
+      App.state.lastAward = cur.code; App.state.deskCode = ''; App.state.notice = '';
       if (p.value === 0) U.toast('Gift: hand it over now.');
       App.render(); focusId('desk-in');
+      // email the coupon (live site only; the demo just shows it on screen)
+      if (p.value > 0) {
+        const n = await D.notifyCoupon(cur.code);
+        if (!n.demo) { App.state.notice = n.ok ? (n.message || 'Their coupon was emailed.') : (n.error + ' Their phone still shows the coupon.'); App.render(); }
+      }
     }
   };
   App.acts['desk-undo'] = async () => {
@@ -174,19 +181,19 @@
       const me = loadShop(), shop = me && d0.shop(me.id);
       if (!shop) {
         return `${App.band('Shop screen', b, 'shop')}<main class="wrap" id="main" style="max-width:640px">
-          ${App.intro('The shop screen', 'For shop staff at the counter. Type or scan a customer\'s coupon code, check it, and use it with one tap.', 'Every shop on the street, on a phone or tablet.', 'Type 1111 to be Main St Espresso.')}
+          ${App.intro('The shop screen', 'For shop staff at the counter. Type or scan a customer\'s coupon code, check it, and use it with one tap.', 'Every shop on the street, on a phone or tablet.', App.isDemo() ? 'Type 1111 to be Main St Espresso.' : '')}
           <div class="panel"><h3>Log in with your shop PIN</h3>
             <form data-form="shoplogin"><label for="shop-pin">Your 4-digit shop PIN</label>
               <input id="shop-pin" name="pin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" value="${esc(ctx.q.get('pin') || '')}" style="letter-spacing:.4em;font-size:28px;text-align:center">
               <p class="err" id="sl-err" role="alert" hidden></p>
               <p style="margin-top:12px"><button class="btn big" type="submit">Log in</button></p></form>
-            <p class="muted" style="font-size:13px">Demo PINs: Main St Espresso 1111, Lantern Thai 2222, The Drover Bar 3333, Gelato Lane 4444, The Corner Bookshop 5555, Croydon Op Shop 6666, Clear View Optometrist 7777, Smile Dental 8888.</p></div></main>${App.footer()}`;
+            ${App.isDemo() ? '<p class="muted" style="font-size:13px">Demo PINs: Main St Espresso 1111, Lantern Thai 2222, The Drover Bar 3333, Gelato Lane 4444, The Corner Bookshop 5555, Croydon Op Shop 6666, Clear View Optometrist 7777, Smile Dental 8888.</p>' : ''}</div></main>${App.footer()}`;
       }
       const S = App.state, area = shop.area;
-      const all = d0.signupsOf(area);
-      const used = all.filter((s) => s.redeemed && s.redeemed_at === shop.id);
-      const usedValue = used.reduce((a, s) => a + Number((s.prize || {}).value || 0), 0);
-      const stamped = all.reduce((a, s) => a + U.stampsAt(s, shop.id), 0);
+      const sm = S.shopSummary || { used: [], stamps: 0 };
+      const used = sm.used || [];
+      const usedValue = used.reduce((a, x) => a + Number(x.value || 0), 0);
+      const stamped = sm.stamps || 0;
       const code = S.shopCode || '';
       const cust = code ? d0.signup(code) : null;
       const camps = d0.campaignsOf(area).filter(d0.live);
@@ -211,7 +218,7 @@
           </section>
           <section class="panel"><h3>Your numbers</h3>
             <div class="stats" style="margin:6px 0 14px"><div class="stat"><b>${used.length}</b><span>coupons used here</span></div><div class="stat"><b>${money(usedValue)}</b><span>total value</span></div><div class="stat"><b>${stamped}</b><span>stamps given here</span></div></div>
-            ${used.length ? `<div class="table-wrap"><table><thead><tr><th>Code</th><th>Customer</th><th>Value</th><th>When</th></tr></thead><tbody>${used.slice().reverse().slice(0, 8).map((s) => `<tr><td>${esc(s.code)}</td><td>${esc(s.name)} ${esc(s.last_initial)}.</td><td>${money(s.prize.value)}</td><td>${esc(U.when(s.redeemed_time))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No coupons used here yet.</p>'}
+            ${used.length ? `<div class="table-wrap"><table><thead><tr><th>Code</th><th>Customer</th><th>Value</th><th>When</th></tr></thead><tbody>${used.slice(0, 8).map((x) => `<tr><td>${esc(x.code)}</td><td>${esc(x.name)} ${esc(x.last)}.</td><td>${money(x.value)}</td><td>${esc(U.when(x.at))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No coupons used here yet.</p>'}
             <p class="muted" style="font-size:13px;margin-top:10px">You only see your own coupons and totals. Your street association uses these to pay you back.</p>
           </section>
         </div>
@@ -235,42 +242,74 @@
     },
   };
 
-  App.forms.shoplogin = async (f) => {
-    const pin = new FormData(f).get('pin'), err = document.getElementById('sl-err');
-    const r = await D.rpc('shop_login', { p_pin: pin }, { reload: false });
-    if (!r.ok) { err.textContent = r.error; err.hidden = false; return; }
-    saveShop({ id: r.shop, pin: String(pin).trim() });
-    const c = App.ctx.q.get('code');   // guided demo: /shop?code=CMS-1234 types the code for you
-    App.state.shopCode = c ? U.normCode(c) : ''; App.state.justUsed = null; App.render(); focusId('shop-code');
+  // A shop's own numbers, from the database (the shop PIN is checked there).
+  async function loadSummary() {
+    const me = loadShop();
+    if (!me) return;
+    App.state.shopSummary = (await D.read('shop_summary', { p_pin: me.pin })) || { used: [], stamps: 0 };
+    App.state.summaryAt = Date.now();
+  }
+  P.shop.after = async (ctx) => {
+    if (!loadShop() || App.state.summaryAt) return;
+    App.state.summaryAt = Date.now();
+    await loadSummary();
+    App.render();
   };
-  App.acts['shop-logout'] = () => { saveShop(null); App.state.shopCode = ''; App.render(); };
-  const shopCodeSet = (raw) => { App.state.shopCode = U.normCode(raw); App.state.justUsed = null; App.render(); return ''; };
-  App.forms.shopcode = (f) => { shopCodeSet(new FormData(f).get('code')); focusId('shop-code'); };
+  // Look up a code. In the live site the shop PIN lets it read that one customer.
+  async function lookupCode(code) {
+    const me = loadShop();
+    if (!code || !me) return;
+    await D.lookup(code, me.pin);
+  }
+
+  App.forms.shoplogin = async (f) => {
+    const pin = new FormData(f).get('pin');
+    const showErr = (m) => { const e = document.getElementById('sl-err'); if (e) { e.textContent = m; e.hidden = false; } };
+    const r = await D.rpc('shop_login', { p_pin: pin }, { reload: false });
+    if (!r.ok) return showErr(r.error);
+    saveShop({ id: r.shop, pin: String(pin).trim() });
+    App.state.summaryAt = 0;
+    const c = App.ctx.q.get('code');   // guided demo: /shop?code=CMS-1234 types the code for you
+    App.state.shopCode = c ? U.normCode(c) : ''; App.state.justUsed = null;
+    if (c) await lookupCode(App.state.shopCode);
+    App.render(); focusId('shop-code');
+  };
+  App.acts['shop-logout'] = () => { saveShop(null); App.state.shopCode = ''; App.state.shopSummary = null; App.state.summaryAt = 0; App.render(); };
+  const shopCodeSet = async (raw) => { App.state.shopCode = U.normCode(raw); App.state.justUsed = null; await lookupCode(App.state.shopCode); App.render(); return ''; };
+  App.forms.shopcode = async (f) => { await shopCodeSet(new FormData(f).get('code')); focusId('shop-code'); };
   App.acts['shop-scan'] = () => {
     const me = loadShop(), shop = me && d0.shop(me.id);
-    const list = shop ? d0.signupsOf(shop.area).slice(-12).reverse().map((s) => ({ label: `${s.name} · ${s.code}`, code: s.code })) : [];
+    // The demo lists people to pick from. The live site only has the camera.
+    const list = App.isDemo() && shop ? d0.signupsOf(shop.area).slice(-12).reverse().map((s) => ({ label: `${s.name} · ${s.code}`, code: s.code })) : undefined;
     U.openScanner({ title: "Scan the customer's code", list, onCode: shopCodeSet, after: () => focusId('shop-code') });
   };
   App.acts['shop-next'] = () => { App.state.shopCode = ''; App.state.justUsed = null; App.render(); focusId('shop-code'); };
   App.acts['shop-use'] = async (b) => {
     const me = loadShop();
     const r = await App.run('use_coupon', { p_code: b.dataset.code, p_pin: me.pin });
-    if (r.ok) { App.state.justUsed = b.dataset.code; App.render(); }
-    else App.render();
+    if (r.ok) App.state.justUsed = b.dataset.code;
+    await lookupCode(b.dataset.code);     // refresh what the shop sees
+    await loadSummary();
+    App.render();
   };
   App.acts['shop-stamp'] = async () => {
     const me = loadShop(), s = d0.signup(App.state.shopCode);
-    if (s && me) await App.addStamp(s, me.id);
+    if (!s || !me) return;
+    await App.addStamp(s, me.id);
+    await lookupCode(s.code); await loadSummary(); App.render();
   };
   App.acts['shop-reward'] = async () => {
     const me = loadShop(), s = d0.signup(App.state.shopCode);
-    if (s && me) await App.run('use_reward', { p_code: s.code, p_shop: me.id }, 'Reward used.');
+    if (!s || !me) return;
+    await App.run('use_reward', { p_code: s.code, p_shop: me.id, p_pin: me.pin }, 'Reward used.');
+    await lookupCode(s.code); App.render();
   };
   const shopId = () => { const me = loadShop(); return me && me.id; };
-  App.acts['trader-out'] = (b) => App.run('set_trader', { p_id: Number(b.dataset.id), p_shop: shopId(), p_status: 'out', p_offer: '' });
-  App.acts['trader-undo'] = (b) => App.run('set_trader', { p_id: Number(b.dataset.id), p_shop: shopId(), p_status: 'none', p_offer: '' });
-  App.forms.optin = (f) => App.run('set_trader', { p_id: Number(f.dataset.id), p_shop: shopId(), p_status: 'in', p_offer: new FormData(f).get('offer') || 'Stamp with any purchase' }, "You're in");
-  App.acts.book = (b) => App.run('book_workshop', { p_trader: shopId(), p_workshop: Number(b.dataset.w) }, 'Booked. Details coming by email.');
+  const shopPin = () => { const me = loadShop(); return me && me.pin; };
+  App.acts['trader-out'] = (b) => App.run('set_trader', { p_id: Number(b.dataset.id), p_shop: shopId(), p_status: 'out', p_offer: '', p_pin: shopPin() });
+  App.acts['trader-undo'] = (b) => App.run('set_trader', { p_id: Number(b.dataset.id), p_shop: shopId(), p_status: 'none', p_offer: '', p_pin: shopPin() });
+  App.forms.optin = (f) => App.run('set_trader', { p_id: Number(f.dataset.id), p_shop: shopId(), p_status: 'in', p_offer: new FormData(f).get('offer') || 'Stamp with any purchase', p_pin: shopPin() }, "You're in");
+  App.acts.book = (b) => App.run('book_workshop', { p_trader: shopId(), p_workshop: Number(b.dataset.w), p_pin: shopPin() }, 'Booked. Details coming by email.');
 
   // =====================================================================
   // SHOP ONBOARDING  (/shop/join/<token>)  about a minute

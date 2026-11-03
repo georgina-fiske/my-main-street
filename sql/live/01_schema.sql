@@ -784,6 +784,38 @@ returns jsonb language sql stable security definer set search_path = public as $
               else null end
 $$;
 
+-- A shop's own numbers (only coupons used at that shop). The shop PIN is checked here.
+create function shop_summary(p_pin text)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare sh shops;
+begin
+  select s.* into sh from shops s join shop_private sp on sp.shop = s.id
+   where sp.pin = _clean(p_pin, 4) and s.status = 'active';
+  if not found then return null; end if;
+  return jsonb_build_object(
+    'shop', sh.id,
+    'used', coalesce((select jsonb_agg(jsonb_build_object('code', s.code, 'name', s.name, 'last', s.last_initial,
+              'value', (s.prize->>'value')::int, 'at', s.redeemed_time) order by s.redeemed_time desc)
+              from signups s where s.redeemed and s.redeemed_at = sh.id and (s.prize->>'value')::int > 0), '[]'::jsonb),
+    'stamps', coalesce((select sum((s.stamps->>sh.id)::int) from signups s where s.stamps ? sh.id), 0));
+end $$;
+
+-- A shop's invite link again (for the client who manages the street).
+create function shop_link(p_shop text)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare a text; t text;
+begin
+  select area into a from shops where id = p_shop;
+  if a is null or not _can_manage(a) then return null; end if;
+  select token into t from shop_private where shop = p_shop;
+  return jsonb_build_object('token', t);
+end $$;
+
+create function staff_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when _is_hq() then coalesce((select jsonb_agg(jsonb_build_object('email', email, 'role', role, 'area', area) order by email) from staff), '[]'::jsonb) else '[]'::jsonb end
+$$;
+
 -- Who am I? (used by the pages to know what to show)
 create function staff_me()
 returns jsonb language sql stable security definer set search_path = public as $$
@@ -869,7 +901,7 @@ begin
       signup(text,text,text,text,text,text,text,boolean), get_pass(text), give_stamp(text,text),
       add_card(text,text), card_stamp(text,text), shop_login(text), shop_lookup(text,text),
       use_coupon(text,text), use_reward(text,text,text), set_trader(bigint,text,text,text,text),
-      book_workshop(text,bigint,text), shop_invite(text), shop_activate(text,text,text), unsubscribe(text)
+      book_workshop(text,bigint,text), shop_invite(text), shop_activate(text,text,text), shop_summary(text), unsubscribe(text)
     to anon, authenticated;
     -- logged-in staff (each function also checks the role)
     grant execute on function
@@ -880,7 +912,7 @@ begin
       area_create(text,text,text,text,text,text,text,text,text), area_save_about(text,text,text,text,text,text,text,text),
       area_contact(text), area_save_brand(text,jsonb,text,text,text), area_set_status(text,text),
       event_save(bigint,text,date,date), report_rows(text), report_log(text,text),
-      staff_me(), staff_add(text,text,text), staff_remove(text)
+      staff_me(), staff_add(text,text,text), staff_remove(text), staff_list(), shop_link(text)
     to authenticated;
   end if;
 end $$;

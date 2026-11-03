@@ -146,7 +146,12 @@
     }
   };
   // Invite links are private, so we only know the ones made in this visit.
-  App.acts['copy-invite'] = (b) => U.toast('Invite links show when you add a shop. In the real version you can resend them here.');
+  App.acts['copy-invite'] = async (b) => {
+    const r = await D.read('shop_link', { p_shop: b.dataset.id });
+    if (!r || !r.token) return U.toast('Invite links show when you add a shop. In the demo they only work in this browser.', true);
+    App.state.inviteLinks = Object.assign({}, App.state.inviteLinks, { [b.dataset.id]: location.origin + '/shop/join/' + r.token });
+    App.render();
+  };
 
   // ---------- look (branding) ----------
   function brandPreview(b) {
@@ -326,7 +331,7 @@
         ${shops.map((s) => `<tr><td>${esc(s.shop)}</td><td>${s.count}</td><td>${money(s.total)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">No coupons used yet.</td></tr>'}
         ${shops.length ? `<tr><td><b>Total</b></td><td><b>${shops.reduce((a, s) => a + s.count, 0)}</b></td><td><b>${money(shops.reduce((a, s) => a + s.total, 0))}</b></td></tr>` : ''}
       </tbody></table></div>
-      <p class="muted" style="font-size:13px;margin-top:12px">Demo: this page is open to everyone. In the live version only signed-in Fruitbowl and client admins can see or download it, and every download is logged.</p>`;
+      <p class="muted" style="font-size:13px;margin-top:12px">${App.isDemo() ? 'Demo: this page is open to everyone. In the live version only signed-in Fruitbowl and client admins can see or download it, and every download is logged.' : 'Only signed-in staff can see or download this. Every download is logged.'}</p>`;
   }
   async function ensureReport(areaId) {
     const key = areaId || '*', R = App.state.report;
@@ -356,7 +361,7 @@
   // =====================================================================
   // CLIENT DASHBOARD  (/client)
   // =====================================================================
-  const clientArea = (ctx) => (d0.area(ctx.q.get('area')) ? ctx.q.get('area') : C.demoHomeArea);
+  const clientArea = (ctx) => App.areaFor(ctx);
   const roleOf = (a) => App.state.clientRole || (a.type === 'Council' ? 'council' : 'street');
   const TABS = [['overview', 'Overview'], ['shops', 'Shops'], ['prizes', 'Prizes'], ['campaigns', 'Campaigns'], ['look', 'Look'], ['reports', 'Reports']];
 
@@ -365,6 +370,8 @@
     title: () => 'Client dashboard',
     render(ctx, b) {
       const id = clientArea(ctx), a = d0.area(id), tab = TABS.some((t) => t[0] === ctx.q.get('tab')) ? ctx.q.get('tab') : 'overview';
+      if (!App.can('manage', id)) return App.gate('Client dashboard', 'manage');
+      if (!a) return `${App.band('Client dashboard', b, 'client')}<main class="wrap" id="main"><div class="panel"><h2>No street yet</h2><p>A street has to be set up first. Fruitbowl does this in Fruitbowl HQ.</p></div></main>${App.footer()}`;
       const role = roleOf(a);
       const link = (t) => `/client?area=${encodeURIComponent(id)}&tab=${t}`;
       let body = '';
@@ -382,9 +389,9 @@
       } else if (tab === 'shops') body = shopsPanel(id);
       else if (tab === 'prizes') body = prizesPanel(id, a.type === 'Council' ? 'council' : 'street');
       else if (tab === 'campaigns') {
-        body = `<div class="row" style="margin-bottom:12px"><label for="cl-role" style="margin:0">Acting as</label>
+        body = `${App.isDemo() ? `<div class="row" style="margin-bottom:12px"><label for="cl-role" style="margin:0">Acting as</label>
           <select id="cl-role" data-change="client-role" style="max-width:260px"><option value="street" ${role === 'street' ? 'selected' : ''}>Street Association</option><option value="council" ${role === 'council' ? 'selected' : ''}>Council</option></select>
-          <span class="muted" style="font-size:13px">Demo: you can try both. A real client only sees their own.</span></div>${campaignsSection(id, role)}
+          <span class="muted" style="font-size:13px">Demo: you can try both. A real client only sees their own.</span></div>` : ''}${campaignsSection(id, role)}
           <div class="panel gap"><h3>Workshops for ${esc(a.council_area)} vendors</h3>${wsTable(d0.workshops().filter((w) => (w.councils || []).includes(a.council_area)), 'read')}</div>`;
       } else if (tab === 'look') {
         const d = draftFor(id);
@@ -394,8 +401,8 @@
       } else if (tab === 'reports') body = reportsView(id);
 
       return `${App.band(a.name, b, 'client')}<main class="wrap" id="main">
-        <div class="row" style="justify-content:space-between;margin-bottom:6px"><div><label for="cl-area" style="margin:0">Pretend you are</label>
-          <select id="cl-area" data-change="client-area" style="max-width:340px">${d0.areas().map((x) => `<option value="${esc(x.id)}" ${x.id === id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+        <div class="row" style="justify-content:space-between;margin-bottom:6px">${App.isDemo() || (D.staff || {}).role === 'fruitbowl' ? `<div><label for="cl-area" style="margin:0">${App.isDemo() ? 'Pretend you are' : 'Street'}</label>
+          <select id="cl-area" data-change="client-area" style="max-width:340px">${d0.areas().map((x) => `<option value="${esc(x.id)}" ${x.id === id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>` : `<div><b>${esc(a.name)}</b></div>`}
           <span class="tag ${a.status === 'live' ? '' : 'wait'}">${esc(STATUS_LABEL[a.status])}</span></div>
         <nav class="tabsbar" aria-label="Client dashboard">${TABS.map((t) => `<a href="${link(t[0])}"${t[0] === tab ? ' aria-current="page"' : ''}>${t[1]}</a>`).join('')}</nav>
         ${body}</main>${App.footer()}`;
@@ -408,11 +415,13 @@
   // =====================================================================
   // FRUITBOWL HQ  (/hq)
   // =====================================================================
-  const HQ_TABS = [['areas', 'Areas'], ['campaigns', 'Campaigns'], ['workshops', 'Workshops'], ['settings', 'Settings'], ['reports', 'Reports']];
+  const hqTabs = () => [['areas', 'Areas'], ['campaigns', 'Campaigns'], ['workshops', 'Workshops'], ['settings', 'Settings'], ['reports', 'Reports']].concat(App.isDemo() ? [] : [['staff', 'Staff']]);
   P.hq = {
     brand: () => App.fruitbowlBrand(),
     title: () => 'Fruitbowl HQ',
     render(ctx) {
+      if (!App.can('hq')) return App.gate('Fruitbowl HQ', 'hq');
+      const HQ_TABS = hqTabs();
       const tab = HQ_TABS.some((t) => t[0] === ctx.q.get('tab')) ? ctx.q.get('tab') : 'areas', S = App.state;
       let body = '';
       if (tab === 'areas') {
@@ -457,11 +466,37 @@
         body = `<div class="panel"><h3>Festival day settings</h3><p class="muted">How the customer's code shows on their phone after they fill out the form. It is saved for everyone. Pick whatever your scanner reads best.</p>
           <div class="row" role="group" aria-label="Code style">${[['qr', 'QR code'], ['number', 'Number'], ['barcode', 'Barcode']].map(([v, l]) => `<button class="btn ${st === v ? '' : 'ghost'}" data-act="code-style" data-v="${v}" aria-pressed="${st === v}">${l}</button>`).join('')}</div></div>`;
       } else if (tab === 'reports') body = `${statsBlock(null)}${reportsView(null)}`;
+      else if (tab === 'staff') {
+        const list = S.staffList;
+        body = `<div class="panel"><h3>Who can log in</h3><p class="muted">Staff log in with a link sent to their email. <b>Fruitbowl</b> sees everything. A <b>client</b> manages one street. <b>Desk</b> staff run the prize desk for one street.</p>
+          ${list ? `<div class="table-wrap"><table><thead><tr><th>Email</th><th>Role</th><th>Street</th><th></th></tr></thead><tbody>${list.map((x) => `<tr><td>${esc(x.email)}</td><td>${esc(x.role)}</td><td>${esc(x.area || 'All')}</td><td><button class="btn ghost small" data-act="staff-remove" data-email="${esc(x.email)}">Remove</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">No one yet.</td></tr>'}</tbody></table></div>` : '<p class="muted">Loading…</p>'}
+          <form data-form="staffadd" class="row" style="margin-top:12px;align-items:flex-end">
+            <div style="flex:2;min-width:200px"><label for="sa-email">Email</label><input id="sa-email" name="email" type="email" required></div>
+            <div style="flex:1;min-width:130px"><label for="sa-role">Role</label><select id="sa-role" name="role"><option value="desk">Desk</option><option value="client">Client</option><option value="fruitbowl">Fruitbowl</option></select></div>
+            <div style="flex:1;min-width:150px"><label for="sa-area">Street</label><select id="sa-area" name="area">${d0.areas().map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}</select></div>
+            <button class="btn" type="submit">Add</button></form>
+          <p class="err" id="sa-err" role="alert" hidden></p></div>`;
+      }
 
       return `${App.band('Fruitbowl HQ', App.fruitbowlBrand(), 'hq')}<main class="wrap" id="main">
         <nav class="tabsbar" aria-label="Fruitbowl HQ">${HQ_TABS.map((t) => `<a href="/hq?tab=${t[0]}"${t[0] === tab ? ' aria-current="page"' : ''}>${t[1]}</a>`).join('')}</nav>${body}</main>${App.footer()}`;
     },
-    after(ctx) { if (ctx.q.get('tab') === 'reports') ensureReport(null); }
+    after(ctx) {
+      if (ctx.q.get('tab') === 'reports') ensureReport(null);
+      if (ctx.q.get('tab') === 'staff' && !App.state.staffList && !ctx.staffAsked) { ctx.staffAsked = true; loadStaff(); }
+    }
+  };
+  async function loadStaff() { App.state.staffList = (await D.read('staff_list')) || []; App.render(); }
+  App.forms.staffadd = async (f) => {
+    const d = Object.fromEntries(new FormData(f));
+    const r = await App.run('staff_add', { p_email: d.email, p_role: d.role, p_area: d.role === 'fruitbowl' ? null : d.area }, 'Added. They can log in now.');
+    if (!r.ok) { const e = document.getElementById('sa-err'); if (e) { e.textContent = r.error; e.hidden = false; } return; }
+    f.reset(); await loadStaff();
+  };
+  App.acts['staff-remove'] = async (b) => {
+    if (!confirm('Remove ' + b.dataset.email + '?')) return;
+    const r = await App.run('staff_remove', { p_email: b.dataset.email }, 'Removed.');
+    if (r.ok) await loadStaff();
   };
   App.acts['hq-new'] = () => { App.state.hqNew = !App.state.hqNew; App.render(); focusId('g-name'); };
   App.forms.hqnew = async (f) => {

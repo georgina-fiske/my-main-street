@@ -54,7 +54,7 @@
   };
 
   // ---------- routes ----------
-  const RESERVED_FIRST = ['demo', 'safety', 'join', 'shop', 'desk', 'client', 'hq', 'wallet', 'c', 'poster', 'stickers', 'tap'];
+  const RESERVED_FIRST = ['demo', 'safety', 'join', 'shop', 'desk', 'client', 'hq', 'wallet', 'c', 'poster', 'stickers', 'tap', 'login', 'u'];
   function parse() {
     const path = location.pathname.replace(/\/+$/, '') || '/';
     const q = new URLSearchParams(location.search);
@@ -71,6 +71,7 @@
         case 'poster': ctx.name = 'poster'; ctx.params.area = seg[1]; break;
         case 'stickers': ctx.name = 'stickers'; ctx.params.id = seg[1]; break;
         case 'tap': ctx.name = 'tap'; ctx.params.shop = seg[1]; break;
+        case 'u': ctx.name = 'unsub'; ctx.params.token = seg[1]; break;
         default: ctx.name = seg[0];
       }
     } else {
@@ -81,14 +82,53 @@
   }
 
   // Keep ?embed=1 on every link inside a preview frame.
+  // In a live site, pages under /demo (and any link inside them) run as a private demo, with ?demo=1.
+  const isDemoPath = (p) => /^\/demo(\/|\?|$)/.test(p) || /[?&]demo=1/.test(p);
+  App.isDemo = () => D.mode === 'local';
   App.href = (path) => {
-    if (!App.ctx || !App.ctx.embed) return path;
-    return path + (path.includes('?') ? '&' : '?') + 'embed=1';
+    let p = path;
+    if (C.mode === 'live' && App.isDemo() && !isDemoPath(p)) p += (p.includes('?') ? '&' : '?') + 'demo=1';
+    if (App.ctx && App.ctx.embed && !/[?&]embed=1/.test(p)) p += (p.includes('?') ? '&' : '?') + 'embed=1';
+    return p;
   };
   App.go = (path, replace) => {
     const url = App.href(path);
+    // Going between the live site and the demo needs a fresh page load (they use different data).
+    if (C.mode === 'live' && isDemoPath(url) !== App.isDemo()) { location.assign(url); return; }
     try { history[replace ? 'replaceState' : 'pushState'](null, '', url); } catch (e) { location.href = url; return; }
     App.route();
+  };
+
+  // Who can do what? (The demo is open to everyone.)
+  App.can = (need, area) => {
+    if (App.isDemo()) return true;
+    const s = D.staff || {};
+    if (need === 'user') return !!(D.user && D.user.email);
+    if (s.role === 'fruitbowl') return true;
+    if (need === 'hq') return false;
+    if (need === 'manage') return s.role === 'client' && s.area === area;
+    if (need === 'desk') return (s.role === 'client' || s.role === 'desk') && s.area === area;
+    return false;
+  };
+  // Which street a staff page is about. Clients and desk staff only ever see their own.
+  App.areaFor = (ctx) => {
+    const s = D.staff || {};
+    if (!App.isDemo() && s.role && s.role !== 'fruitbowl' && s.area) return s.area;
+    const q = ctx.q.get('area');
+    if (D0.area(q)) return q;
+    const first = D0.area(C.demoHomeArea) || D.state.areas[0];
+    return first ? first.id : C.demoHomeArea;
+  };
+  // The staff log-in box shown instead of a staff page.
+  App.gate = (title, need) => {
+    const e = D.user && D.user.email;
+    return `${App.band(title, App.fruitbowlBrand(), '')}<main class="wrap" id="main" style="max-width:560px">
+      <div class="panel"><h2>${e ? 'This login can\'t open this page' : 'Staff log in'}</h2>
+      ${e ? `<p>You are logged in as <b>${esc(e)}</b>, but that email doesn't have access here. Ask Fruitbowl to add you, or log in with a different email.</p><p><button class="btn" data-act="logout">Log out</button></p>`
+        : `<p>Enter your email. We'll send you a link that logs you in. No password needed.</p>
+           <form data-form="login" data-next="${esc(location.pathname + location.search)}"><label for="lg-email">Email</label><input id="lg-email" name="email" type="email" autocomplete="email" required>
+           <p class="err" id="lg-err" role="alert" hidden></p><p style="margin-top:12px"><button class="btn big" type="submit">Email me a login link</button></p></form>`}
+      </div></main>${App.footer()}`;
   };
 
   // ---------- chrome ----------
@@ -96,19 +136,27 @@
 
   // The wide pages (desk, shop, client, HQ, reports...)
   App.band = (title, b, current) => {
-    const links = [['/desk', 'Prize desk', 'desk'], ['/shop', 'Shop screen', 'shop'], ['/client', 'Client', 'client'], ['/hq', 'Fruitbowl HQ', 'hq'], ['/demo', 'Demo', 'demo']];
+    const demo = App.isDemo(), role = (D.staff || {}).role;
+    let links = [['/desk', 'Prize desk', 'desk'], ['/shop', 'Shop screen', 'shop'], ['/client', 'Client', 'client'], ['/hq', 'Fruitbowl HQ', 'hq'], ['/demo', 'Demo', 'demo']];
+    if (!demo) {
+      links = role === 'fruitbowl' ? [['/desk', 'Prize desk', 'desk'], ['/client', 'Client', 'client'], ['/hq', 'Fruitbowl HQ', 'hq']]
+        : role === 'client' ? [['/desk', 'Prize desk', 'desk'], ['/client', 'Client', 'client']]
+          : role === 'desk' ? [['/desk', 'Prize desk', 'desk']] : [];
+    }
     return `<header class="band"><div class="wrap">
-      <div class="brandline">${App.logoImg(b)}<div><div class="small-street">${esc(b.place || C.siteName)} <span class="demo">Demo, not live yet</span></div><div class="title">${esc(title)}</div></div></div>
-      <nav aria-label="Pages">${links.map((l) => `<a href="${l[0]}"${l[2] === current ? ' aria-current="page"' : ''}>${l[1]}</a>`).join('')}</nav>
+      <div class="brandline">${App.logoImg(b)}<div><div class="small-street">${esc(b.place || C.siteName)}${demo ? ' <span class="demo">Demo, not live yet</span>' : ''}</div><div class="title">${esc(title)}</div></div></div>
+      <nav aria-label="Pages">${links.map((l) => `<a href="${l[0]}"${l[2] === current ? ' aria-current="page"' : ''}>${l[1]}</a>`).join('')}${!demo && D.user ? '<a href="#" data-act="logout">Log out</a>' : ''}</nav>
     </div></header>`;
   };
-  App.footer = () => `<footer class="foot"><p>This is a demo. The shops and coupons are made up. Nothing here is real.${D.mode === 'local' ? ' Your changes stay in this browser.' : ''}
-      <a href="/safety">Safety and privacy</a></p><button type="button" class="btn ghost small" data-act="reset">Reset demo</button></footer>`;
+  App.footer = () => (App.isDemo()
+    ? `<footer class="foot"><p>This is a demo. The shops and coupons are made up. Nothing here is real. Your changes stay in this browser.
+      <a href="/safety">Safety and privacy</a></p><button type="button" class="btn ghost small" data-act="reset">Reset demo</button></footer>`
+    : `<footer class="foot"><p>${esc(C.siteName)}. <a href="/safety">Safety and privacy</a></p></footer>`);
   App.page = (inner, opts) => `<main class="wrap${opts && opts.cls ? ' ' + opts.cls : ''}" id="main">${inner}</main>${App.footer()}`;
 
   // The phone pages (sign-up, coupon, shops, Wallet)
   App.appbar = (b) => `<div class="appbar">${b.logo ? `<img src="${esc(b.logo)}" alt="">` : ''}<div><small>${esc(b.place)}</small><b>${esc(b.appName || C.siteName)}</b></div></div>`;
-  App.custPage = (b, inner) => `<div class="cust"><div class="demo-strip">Demo, not live yet</div>${App.appbar(b)}<div class="body" id="main">${inner}</div></div>`;
+  App.custPage = (b, inner) => `<div class="cust">${App.isDemo() ? '<div class="demo-strip">Demo, not live yet</div>' : ''}${App.appbar(b)}<div class="body" id="main">${inner}</div></div>`;
 
   App.intro = (title, what, who, tryit) =>
     `<div class="intro"><h2>${title}</h2><p>${what}</p><div class="intro-grid"><div><b>Who uses it</b><p>${who}</p></div>${tryit ? `<div><b>Try it</b><p>${tryit}</p></div>` : ''}</div></div>`;
@@ -160,7 +208,7 @@
     const snap = snapshotFields();
     root().innerHTML = page.render(ctx, brand);
     if (App.skipRestore) App.skipRestore = false; else restoreFields(snap);
-    document.title = (page.title ? page.title(ctx, brand) + ' – ' : '') + C.siteName + (brand.place ? ' – ' + brand.place : '') + ' (demo)';
+    document.title = (page.title ? page.title(ctx, brand) + ' – ' : '') + C.siteName + (brand.place ? ' – ' + brand.place : '') + (App.isDemo() ? ' (demo)' : '');
     ctx.rendered = true;
     if (page.after) page.after(ctx, brand);
   };
@@ -181,6 +229,7 @@
   }
 
   App.route = () => {
+    if (App.ctx && App.ctx.stop) { App.ctx.stop(); App.ctx.stop = null; }   // stop refreshing the old page
     App.ctx = parse();
     const page = App.pages[App.ctx.name];
     if (page && page.enter) page.enter(App.ctx);
@@ -226,7 +275,9 @@
   window.addEventListener('popstate', App.route);
 
   // ---------- shared actions ----------
+  App.acts.logout = async () => { await D.signOut(); App.go('/login'); };
   App.acts.reset = async () => {
+    if (!App.isDemo()) return;
     if (!confirm('Reset the demo? This wipes all changes and reloads the demo data.')) return;
     const r = await App.run('reset_demo', {}, 'Demo reset.');
     if (r.ok) { store.set('msr-code', ''); store.sset('msr-shop', ''); App.state = {}; App.render(); document.dispatchEvent(new CustomEvent('msr-reset')); }

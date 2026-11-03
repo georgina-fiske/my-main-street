@@ -28,7 +28,10 @@
       if (App.ctx === ctx) App.render();
     },
     render(ctx, b) {
+      if (!App.can('user')) return App.gate('Set up your area', 'user');
       const id = joinArea(ctx), a = id && d0.area(id), n = step();
+      if (n > 1 && !a) return `${App.band('Set up your area', b, 'join')}<main class="wrap" id="main"><div class="panel"><h2>We can't find that street</h2><p>Start again from step 1.</p></div></main>${App.footer()}`;
+      if (a && !App.can('manage', a.id)) return App.gate('Set up your area', 'manage');
       const bar = `<div class="progress" aria-label="Step ${n} of 4">${STEPS.map((_, i) => `<i class="${i < n ? 'done' : ''}"></i>`).join('')}</div>
         <p class="partlabel">Step ${n} of 4: ${STEPS[n - 1]}</p>`;
       let body = '';
@@ -86,6 +89,7 @@
       r = await App.run('area_create', { p_name: d.name, p_type: d.type, p_council_area: d.area, p_slug: '', p_contact_name: d.cname || '', p_email: d.email, p_mobile: d.mobile || '', p_abn: d.abn || '', p_by: App.ctx.q.get('by') === 'fruitbowl' ? 'fruitbowl' : 'self' });
       if (!r.ok) return fail(r.error);
       id = r.id; App.state.joinArea = id;
+      await D.refresh();   // the new street's staff login is now ours
       try { history.replaceState(null, '', App.href('/join?area=' + id)); App.ctx = Object.assign(App.ctx, { q: new URLSearchParams('area=' + id + (App.ctx.embed ? '&embed=1' : '')) }); } catch (e) { /* ignore */ }
     } else {
       r = await App.run('area_save_about', { p_id: id, p_name: d.name, p_type: d.type, p_council_area: d.area, p_contact_name: d.cname || '', p_email: d.email, p_mobile: d.mobile || '', p_abn: d.abn || '' });

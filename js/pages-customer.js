@@ -9,7 +9,7 @@
   const brandFor = (ctx) => (areaOr404(ctx) ? App.brandOf(ctx.params.area) : App.fruitbowlBrand());
 
   function notFound(msg) {
-    return `<div class="panel"><h2>We can't find that page</h2><p>${esc(msg || 'Check the web address and try again.')}</p><p><a class="btn" href="/demo">Go to the demo</a></p></div>`;
+    return `<div class="panel"><h2>We can't find that page</h2><p>${esc(msg || 'Check the web address and try again.')}</p>${App.isDemo() ? '<p><a class="btn" href="/demo">Go to the demo</a></p>' : ''}</div>`;
   }
 
   // ---------- sign-up form (/croydon) ----------
@@ -36,13 +36,19 @@
             <label class="check" style="margin:4px 0 0"><input type="radio" name="contact" value="text"> Text message</label></div></fieldset>
           <label for="f-email">Email</label><input id="f-email" name="email" type="email" autocomplete="email" maxlength="120" value="${esc(pf.email || '')}">
           <label for="f-mob">Mobile</label><input id="f-mob" name="mobile" inputmode="tel" autocomplete="tel" placeholder="04xx xxx xxx" maxlength="14">
-          <p class="muted" style="font-size:13px;margin:6px 0 0">Demo only: please use made-up details.</p>
+          ${App.isDemo() ? '<p class="muted" style="font-size:13px;margin:6px 0 0">Demo only: please use made-up details.</p>' : ''}
           <label class="check" style="margin-top:12px"><input type="checkbox" name="optin"> Send me news and offers from ${esc(b.place)} (optional)</label>
           <label class="check"><input type="checkbox" name="terms" ${pf.name ? 'checked' : ''}> <span>I agree to the terms and the <a href="/safety" target="_blank" rel="noopener">safety and privacy page</a></span></label>
           <p class="err" id="su-err" role="alert" hidden></p>
           <p style="margin-top:14px"><button class="btn sun big" type="submit">Sign up</button></p>
         </form>`);
     }
+  };
+
+  // The live site only knows this phone's own coupon, so fetch it.
+  P.signup.after = async (ctx) => {
+    const c = App.store.get('msr-code');
+    if (c && !ctx.fetched && !d0.signup(c)) { ctx.fetched = true; await D.fetchPass(c); App.render(); }
   };
 
   App.forms.signup = async (f) => {
@@ -103,19 +109,29 @@
         <p class="muted" style="font-size:13px;margin:4px 0 0">Coupons are used in full. No change is given.</p>
         ${pin
           ? `<form data-form="couponpin" data-code="${esc(s.code)}" class="row" style="margin-top:10px;flex-wrap:nowrap"><input id="pin-in" name="pin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" aria-label="Shop PIN" style="flex:1 1 140px;min-width:120px;letter-spacing:.3em"><button class="btn" type="submit" style="flex:0 0 auto">Confirm</button></form>
-             <p class="muted" style="font-size:13px;margin:6px 0 0">Staff type their shop's 4-digit PIN. Demo: Main St Espresso is 1111.</p>`
+             <p class="muted" style="font-size:13px;margin:6px 0 0">Staff type their shop's 4-digit PIN.${App.isDemo() ? ' Demo: Main St Espresso is 1111.' : ''}</p>`
           : `<button class="btn sun" style="width:100%;margin-top:10px" data-act="pin-open" data-code="${esc(s.code)}">Shop: use this coupon</button>`}</div>`;
   }
 
   P.coupon = {
     brand(ctx) { const s = d0.signup(ctx.params.code); return s ? App.brandOf(s.area) : App.fruitbowlBrand(); },
     title: () => 'Your coupon',
+    // The live site fetches this one coupon by its code, and keeps it fresh (the win shows within seconds).
+    async after(ctx) {
+      if (ctx.fetched) return;
+      ctx.fetched = true;
+      await D.fetchPass(ctx.params.code);
+      ctx.loaded = true;
+      App.render();
+      ctx.stop = D.watchPass(ctx.params.code);
+    },
     render(ctx, b) {
       const s = d0.signup(ctx.params.code);
+      if (!s && !App.isDemo() && !ctx.loaded) return App.custPage(b, '<p>Loading your coupon…</p>');
       if (!s) return App.custPage(b, notFound("We can't find that code. Check it and try again."));
       const mine = d0.me();
       return App.custPage(b, `${couponState(s, b)}
-        ${mine && mine.code === s.code ? `<p class="small muted" style="text-align:center"><a href="/${esc(s.area)}">Fill out the form for someone else</a> · <a href="/wallet">Phase 2: see the Wallet pass</a></p>` : ''}`);
+        ${mine && mine.code === s.code && App.isDemo() ? `<p class="small muted" style="text-align:center"><a href="/${esc(s.area)}">Fill out the form for someone else</a> · <a href="/wallet">Phase 2: see the Wallet pass</a></p>` : ''}`);
     }
   };
   App.acts['pin-open'] = (b) => { App.state.pinOpen = b.dataset.code; App.render(); const el = document.getElementById('pin-in'); if (el) el.focus(); };
@@ -174,14 +190,23 @@
     return `<div class="voucher"><b>${value ? money(value) + ' · ' : ''}${esc(title)}</b>
       ${open
         ? `<form data-form="walletpin" data-key="${esc(key)}" class="row" style="margin-top:10px;flex-wrap:nowrap"><input id="pin-in" name="pin" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" aria-label="Shop PIN" style="flex:1 1 140px;min-width:120px;letter-spacing:.3em"><button class="btn" type="submit" style="flex:0 0 auto">Confirm</button></form>
-           <p class="muted" style="font-size:13px;margin:6px 0 0">Staff type their shop's 4-digit PIN. Demo: Main St Espresso is 1111.</p>`
+           <p class="muted" style="font-size:13px;margin:6px 0 0">Staff type their shop's 4-digit PIN.${App.isDemo() ? ' Demo: Main St Espresso is 1111.' : ''}</p>`
         : `<button class="btn sun" data-act="wallet-pin-open" data-key="${esc(key)}">Staff: tap to use this</button>`}</div>`;
   }
 
   P.wallet = {
     brand: () => App.fruitbowlBrand(),
     title: () => 'Wallet pass',
+    async after(ctx) {
+      const c = App.store.get('msr-code');
+      if (c && !ctx.fetched && !d0.signup(c)) { ctx.fetched = true; await D.fetchPass(c); App.render(); }
+    },
     render() {
+      if (!App.isDemo()) {
+        return `<div class="cust"><div class="body" id="main"><div class="panel"><h2>Wallet passes are coming soon</h2>
+          <p>Soon you'll be able to keep your pass in your phone's Wallet, like a concert ticket. For now, your coupon page is all you need.</p>
+          ${App.store.get('msr-code') ? `<p><a class="btn" href="/c/${esc(App.store.get('msr-code'))}">Back to my coupon</a></p>` : ''}</div></div></div>`;
+      }
       const s = d0.me();
       if (!s) {
         return `<div class="cust"><div class="demo-strip">Demo, not live yet</div><div class="body" id="main"><div class="panel"><h2>Fill out the form first</h2>
@@ -256,7 +281,7 @@
     else {
       const target = key.slice(7);
       if (sh.shop !== target) return U.toast('This reward can only be used at ' + d0.shopName(target), true);
-      r = await App.run('use_reward', { p_code: s.code, p_shop: target });
+      r = await App.run('use_reward', { p_code: s.code, p_shop: target, p_pin: new FormData(f).get('pin') });
     }
     if (r.ok) { App.state.pinFor = null; U.toast('Used at ' + sh.name); App.render(); }
   };
@@ -268,8 +293,10 @@
     async after(ctx) {
       if (ctx.done) return;
       ctx.done = true;
+      const code0 = App.store.get('msr-code');
+      if (code0 && !d0.signup(code0)) await D.fetchPass(code0);
       const sh = d0.shop(ctx.params.shop), s = d0.me();
-      if (!sh) { U.toast('That sticker is not part of this demo.', true); return App.go('/demo', true); }
+      if (!sh) { U.toast('That sticker is not part of this ' + (App.isDemo() ? 'demo.' : 'street.'), true); return App.go(App.isDemo() ? '/demo' : '/', true); }
       if (!s) { U.toast('Fill out the form first to collect stamps.', true); return App.go('/' + sh.area, true); }
       await addStamp(s, sh.id);
       App.go('/wallet', true);

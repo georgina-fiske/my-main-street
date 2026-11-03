@@ -169,6 +169,7 @@
   };
   F.use_reward = (B, a) => {
     const s = signupOf(B, a.p_code), sh = clean(a.p_shop, 30);
+    if (a.p_pin !== undefined && (B.shop_private[sh] || {}).pin !== clean(a.p_pin, 4)) return err("That PIN doesn't match this shop");
     if (!s) return err('No one has that code.');
     const have = Math.floor((Number(s.stamps[sh]) || 0) / 6), used = Number(s.rewards_used[sh]) || 0;
     if (have - used < 1) return err('No 6-stamp reward to use here.');
@@ -290,6 +291,7 @@
   };
   F.set_trader = (B, a) => {
     const sh = clean(a.p_shop, 60), c = campaign(B, a.p_id);
+    if (a.p_pin !== undefined && (B.shop_private[sh] || {}).pin !== clean(a.p_pin, 4)) return err("That PIN doesn't match this shop");
     if (!B.shops.find((s) => s.id === sh) || !['in', 'out', 'none'].includes(a.p_status)) return err('Bad answer.');
     if (!c) return err('Campaign not found.');
     if (a.p_status === 'none') delete c.traders[sh];
@@ -334,6 +336,7 @@
     return ok();
   };
   F.book_workshop = (B, a) => {
+    if (a.p_pin !== undefined && (B.shop_private[clean(a.p_trader, 60)] || {}).pin !== clean(a.p_pin, 4)) return err("That PIN doesn't match this shop");
     if (!B.shops.find((s) => s.id === clean(a.p_trader, 60))) return err('Which shop?');
     if (!B.workshops.find((w) => Number(w.id) === Number(a.p_workshop))) return err('Workshop not found.');
     if (!B.bookings.find((b) => b.trader === a.p_trader && Number(b.workshop) === Number(a.p_workshop))) {
@@ -428,9 +431,25 @@
     });
     return { read: true, data: rows.sort((x, y) => (x.signed_up < y.signed_up ? 1 : -1)) };
   };
+  // A shop's own numbers. (Same as the database function of the same name.)
+  F.shop_summary = (B, a) => {
+    const sh = shopByPin(B, a.p_pin);
+    if (!sh) return { read: true, data: null };
+    const used = B.signups.filter((s) => s.redeemed && s.redeemed_at === sh.id && s.prize && Number(s.prize.value) > 0)
+      .sort((x, y) => (x.redeemed_time < y.redeemed_time ? 1 : -1))
+      .map((s) => ({ code: s.code, name: s.name, last: s.last_initial, value: Number(s.prize.value), at: s.redeemed_time }));
+    return { read: true, data: { shop: sh.id, used, stamps: B.signups.reduce((n, s) => n + (Number(s.stamps[sh.id]) || 0), 0) } };
+  };
+  F.shop_link = (B, a) => ({ read: true, data: { token: (B.shop_private[a.p_shop] || {}).token || null } });
+  F.staff_list = () => ({ read: true, data: [] });
+  F.staff_add = () => err('Staff logins are not used in the demo.');
+  F.staff_remove = () => err('Staff logins are not used in the demo.');
+  F.unsubscribe = () => err('Not available on the demo site.');
+  F.get_pass = (B, a) => ({ read: true, data: signupOf(B, String(a.p_code || '').toUpperCase()) || null });
+  F.shop_lookup = (B, a) => ({ read: true, data: shopByPin(B, a.p_pin) ? signupOf(B, String(a.p_code || '').toUpperCase()) || null : null });
   F.report_log = (B, a) => { B.download_log.push({ at: new Date().toISOString(), who: 'Demo viewer', kind: clean(a.p_kind, 40), area: clean(a.p_area, 40) }); return ok(); };
 
-  const READ_ONLY = ['shop_login', 'shop_invite', 'area_contact', 'report_rows'];
+  const READ_ONLY = ['shop_login', 'shop_invite', 'area_contact', 'report_rows', 'shop_summary', 'shop_link', 'staff_list', 'get_pass', 'shop_lookup'];
 
   // ---------- the same interface as the Supabase version ----------
   window.LocalDB = {
@@ -438,6 +457,7 @@
       const refresh = () => { view(loadB(), DB); };
       refresh();
       DB.ready = true; DB.error = null; DB.mode = 'local';
+      DB.user = { email: 'demo@example.com' }; DB.staff = { role: 'fruitbowl', email: 'demo@example.com' };   // the demo is open to everyone
       DB.load = async () => { refresh(); DB.listeners.forEach((fn) => fn()); };
       // other frames or tabs in this browser changed something
       window.addEventListener('storage', (e) => { if (e.key === KEY) { refresh(); DB.listeners.forEach((fn) => fn()); } });

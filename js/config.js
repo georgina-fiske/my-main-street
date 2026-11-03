@@ -3,8 +3,9 @@
 
 window.CONFIG = {
   // ---- Where the data lives ----
-  // 'local'    = demo mode. Nothing to set up. Each visitor's changes stay in their own browser.
-  // 'supabase' = shared database (run sql/01_schema.sql first). Changes are shared and live.
+  // 'local' = the whole site is a demo that runs in the visitor's own browser (nothing to set up).
+  // 'live'  = real customers. The site uses the Supabase database (run sql/live/01_schema.sql first).
+  //           Pages under /demo still run as a private demo in the visitor's browser.
   mode: 'local',
 
   // ---- Supabase (public values only; safe to be in the front end) ----
