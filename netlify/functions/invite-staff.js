@@ -26,6 +26,8 @@ exports.handler = async (event, _ctx, inject) => {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json(400, { ok: false, error: 'Please add a real email.' });
   if (!['chaos', 'fruitbowl', 'council', 'street', 'desk'].includes(role)) return json(400, { ok: false, error: 'Which level?' });
   if (role === 'chaos' && caller.role !== 'chaos') return json(403, { ok: false, error: 'Only Chaos Master can invite another Chaos Master.' });
+  const typedPassword = String(b.password || '');
+  if (typedPassword && typedPassword.length < 8) return json(400, { ok: false, error: 'The password needs at least 8 characters.' });
   let area = null;
   if (!['chaos', 'fruitbowl'].includes(role)) {
     area = String(b.area || '');
@@ -38,6 +40,22 @@ exports.handler = async (event, _ctx, inject) => {
   // the level
   const up = await sb.call('/rest/v1/staff?on_conflict=email', { method: 'POST', headers: { prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ email, role, area, shop: null }) });
   if (!up.ok) return json(500, { ok: false, error: 'We could not add them. Please try again.' });
+
+  // A password typed in by Fruitbowl: make the login now, so they can log in straight away (no email needed).
+  const password = String(b.password || '');
+  if (password) {
+    const made = await sb.call('/auth/v1/admin/users', { method: 'POST', body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { name } }) });
+    if (made.ok) return json(200, { ok: true, message: email + ' can log in now with the password you set. Please send it to them privately.' });
+    const mj = await made.json().catch(() => ({}));
+    if (made.status === 422 || /already|registered|exists/i.test(JSON.stringify(mj))) {
+      const list = await sb.call('/auth/v1/admin/users?per_page=1000');
+      const found = list.ok ? ((await list.json()).users || []).find((u) => String(u.email || '').toLowerCase() === email) : null;
+      if (!found) return json(200, { ok: false, error: 'They were added, but their password could not be set. Ask them to use "Forgot password".' });
+      const put = await sb.call('/auth/v1/admin/users/' + found.id, { method: 'PUT', body: JSON.stringify({ password, email_confirm: true }) });
+      if (put.ok) return json(200, { ok: true, message: email + ' already had an account. Their password is now the one you set. Please send it to them privately.' });
+    }
+    return json(200, { ok: false, error: 'They were added, but their password could not be set. Ask them to use "Forgot password".' });
+  }
 
   // the email with a link to set a password
   const origin = String(env.SITE_ORIGIN || '').replace(/\/$/, '');

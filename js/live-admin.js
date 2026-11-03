@@ -189,13 +189,14 @@
         else {
           const mine = LB.role();
           const levels = [['fruitbowl', 'Fruitbowl'], ['council', 'Council'], ['street', 'Street Association'], ['desk', 'Prize desk']].concat(mine === 'chaos' ? [['chaos', 'Chaos Master']] : []);
-          body = `<div class="panel"><h3>Invite someone</h3><p class="muted">They get an email with a link to choose a password. Each level sees only what it should.</p>
+          body = `<div class="panel"><h3>Invite someone</h3><p class="muted">Leave the password empty and they get an email with a link to choose their own. Or type a password (8 or more characters) and they can log in straight away. Send it to them privately.</p>
             <form data-form="linvite" class="row" style="align-items:flex-end">
               <div style="flex:1;min-width:150px"><label for="iv-name">Name</label><input id="iv-name" name="name" maxlength="80"></div>
               <div style="flex:2;min-width:200px"><label for="iv-email">Email</label><input id="iv-email" name="email" type="email" required></div>
               <div style="flex:1;min-width:150px"><label for="iv-role">Level</label><select id="iv-role" name="role">${levels.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
               ${ctx.area ? `<input type="hidden" name="area" value="${esc(area)}">` : `<div style="flex:1;min-width:170px"><label for="iv-area">Street</label><select id="iv-area" name="area">${d0.areas().map((x) => `<option value="${esc(x.id)}" ${x.id === area ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>`}
-              <button class="btn" type="submit">Send invite</button></form>
+              <div style="flex:1;min-width:200px"><label for="iv-pw">Password (optional)</label><input id="iv-pw" name="password" type="text" autocomplete="off" minlength="8" placeholder="Leave empty to send an email"></div>
+              <button class="btn" type="submit">Add person</button></form>
             <p class="small muted">Fruitbowl, Chaos Master: every street. Council and Street Association: their own street only. Prize desk: the prize desk for one street. Shops set up their own accounts from the shop one-pager.</p>
             <p class="err" id="iv-err" role="alert" hidden></p><p class="ok" id="iv-ok" role="status" hidden></p></div>
             <div class="panel gap"><h3>Everyone with a login</h3>${S.people ? `<div class="table-wrap"><table><thead><tr><th>Email</th><th>Level</th><th>Street or shop</th><th></th></tr></thead><tbody>
@@ -313,7 +314,7 @@
     const d = Object.fromEntries(new FormData(f));
     const err = document.getElementById('iv-err'), okm = document.getElementById('iv-ok');
     err.hidden = true; okm.hidden = true;
-    const r = await LB.fn('invite-staff', { name: d.name, email: d.email, role: d.role, area: ['chaos', 'fruitbowl'].includes(d.role) ? null : d.area }, true);
+    const r = await LB.fn('invite-staff', { name: d.name, email: d.email, password: d.password || '', role: d.role, area: ['chaos', 'fruitbowl'].includes(d.role) ? null : d.area }, true);
     if (!r.ok) { err.textContent = r.error; err.hidden = false; return; }
     okm.textContent = r.message; okm.hidden = false; f.reset();
     App.state.people = (await D.read('staff_list')) || []; App.render();
