@@ -7,7 +7,22 @@
   const ORDER = { settings: null, areas: 'sort_order', events: 'id', shops: 'sort_order', prizes: 'sort_order', signups: 'created_at' };
   const listeners = [];
   const demoPage = /^\/demo(\/|$)/.test(location.pathname) || new URLSearchParams(location.search).get('demo') === '1';
-  const isLive = window.CONFIG.mode === 'live' && !demoPage;
+  // Preview of the real site on the Netlify address, before the domain is ready:
+  //   ?preview=croydon  shows the Croydon pages (sign-up, coupons, desk, shops)
+  //   ?preview=main     shows the main-site pages (admin, safety, login)
+  //   ?preview=off      goes back to the normal site
+  // Only works on *.netlify.app, and it is remembered for this browser tab only.
+  const preview = (function () {
+    if (!/\.netlify\.app$/.test(location.hostname)) return null;
+    try {
+      const q = new URLSearchParams(location.search).get('preview');
+      if (q === 'off') sessionStorage.removeItem('msr-preview');
+      else if (q) sessionStorage.setItem('msr-preview', q.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+      return sessionStorage.getItem('msr-preview') || null;
+    } catch (e) { return null; }
+  })();
+  window.PREVIEW = preview;
+  const isLive = (window.CONFIG.mode === 'live' || !!preview) && !demoPage;
   const DB = {
     listeners,
     live: isLive,

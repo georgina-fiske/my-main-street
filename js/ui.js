@@ -61,6 +61,7 @@
   const portPart = location.port ? ':' + location.port : '';
   App.hostArea = () => {
     const h = location.hostname, base = C.baseDomain;
+    if (window.PREVIEW) return window.PREVIEW === 'main' ? null : window.PREVIEW;
     if (dev) return h.endsWith('.localhost') ? h.split('.')[0] : null;
     if (h.endsWith('.' + base)) { const l = h.slice(0, -(base.length + 1)); return l && l !== 'www' && !l.includes('.') ? l : null; }
     return null;
