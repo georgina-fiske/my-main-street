@@ -204,7 +204,19 @@
 
   // The phone pages (sign-up, coupon, shops, Wallet)
   App.appbar = (b) => `<div class="appbar">${b.logo ? `<img src="${esc(b.logo)}" alt="">` : ''}<div><small>${esc(b.place)}</small><b>${esc(b.appName || C.siteName)}</b></div></div>`;
-  App.custPage = (b, inner) => `<div class="cust">${App.isDemo() ? '<div class="demo-strip">Demo, not live yet</div>' : ''}${App.appbar(b)}<div class="body" id="main">${inner}</div></div>`;
+  // The Council's campaign look: a bold headline on a flat colour block, with flat blocks of the other colours under it.
+  // The four colours are mixed differently on each page (the order turns by one each time). Only an area with a headline and palette gets it.
+  const PAGE_TURN = { signup: 0, coupon: 1, shops: 2, desk: 3, shop: 3, shopclaim: 2 };
+  App.palette = (b) => (Array.isArray(b.palette) ? b.palette.filter((c) => /^#[0-9a-f]{6}$/i.test(c)) : []);
+  App.councilBanner = (b, turn) => {
+    const pal = App.palette(b);
+    if (!b.headline || pal.length < 3) return '';
+    const r = pal.map((_, i) => pal[(i + turn) % pal.length]);
+    return `<section class="cbanner" aria-label="${esc(b.headline)}"><div class="cb-hero" style="background:${r[0]};color:${U.textOn(r[0])}"><h1>${esc(b.headline)}</h1></div>
+      <div class="cb-blocks" aria-hidden="true">${r.slice(1).map((c) => `<i style="background:${c}"></i>`).join('')}</div></section>`;
+  };
+  App.colourStrip = (b) => { const pal = App.palette(b); return pal.length ? `<div class="cstrip" aria-hidden="true">${pal.map((c) => `<i style="background:${c}"></i>`).join('')}</div>` : ''; };
+  App.custPage = (b, inner) => `<div class="cust">${App.isDemo() ? '<div class="demo-strip">Demo, not live yet</div>' : ''}${App.appbar(b)}${App.councilBanner(b, PAGE_TURN[(App.ctx || {}).name] || 0)}<div class="body" id="main">${inner}</div></div>`;
 
   App.intro = (title, what, who, tryit) =>
     `<div class="intro"><h2>${title}</h2><p>${what}</p><div class="intro-grid"><div><b>Who uses it</b><p>${who}</p></div>${tryit ? `<div><b>Try it</b><p>${tryit}</p></div>` : ''}</div></div>`;

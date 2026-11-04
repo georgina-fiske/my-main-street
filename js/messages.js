@@ -23,8 +23,12 @@
     const main = hexOr(d.color, '#23003F'), accent = hexOr(d.accent, '#FFFDB4');
     const shops = d.shopsUrl || url + '/' + d.area + '/shops';
     const subject = 'Thanks for spinning the wheel! Here\'s your coupon code';
+    const pal = (Array.isArray(d.palette) ? d.palette : []).filter((c) => /^#[0-9a-f]{6}$/i.test(c));
+    const banner = d.headline && pal.length >= 3
+      ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td style="background:${pal[0]};color:${inkOn(pal[0])};padding:20px 16px;font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:26px;line-height:1.05;text-transform:uppercase">${esc(d.headline)}</td></tr><tr><td style="padding:0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${pal.slice(1).map((c) => `<td height="14" style="background:${c};font-size:0;line-height:0">&nbsp;</td>`).join('')}</tr></table></td></tr></table>`
+      : '';
     const html =
-      `<div style="font-family:Montserrat,Arial,sans-serif;color:#1E0B45;line-height:1.5;font-size:15px">
+      `${banner}<div style="font-family:Montserrat,Arial,sans-serif;color:#1E0B45;line-height:1.5;font-size:15px;padding:${banner ? '16px 0 0' : '0'}">
         <p>Hi ${esc(d.name)},</p>
         <p>Thanks for spinning the wheel at ${esc(d.event)} today!</p>
         <p style="font-size:18px"><b>You won a ${money(d.value)} coupon.</b><br>

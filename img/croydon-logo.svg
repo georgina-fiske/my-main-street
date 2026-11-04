@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 110" role="img" aria-label="Croydon Main Street Traders Association">
-<!-- STAND-IN drawn to match the real logo (gold-to-orange arc). Replace with the real croydon-traders-logo.png. -->
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0.6"><stop offset="0" stop-color="#F9CD08"/><stop offset="1" stop-color="#F29400"/></linearGradient></defs>
-<path d="M6 100 C10 40 60 6 110 6 C160 6 210 40 214 100 C190 70 165 62 140 66 C120 70 105 76 85 70 C60 63 35 70 6 100 Z" fill="url(#g)"/>
-</svg>

@@ -378,3 +378,12 @@ body.embed .intro{display:none}
 .dash .qrcard p{overflow-wrap:anywhere}
 @media (max-width:560px){.dash .grid.two,.dash .grid.duo{grid-template-columns:1fr}}
 .savebar.ok{background:var(--surface);color:var(--ink);border-top:3px solid var(--tab-line,var(--euc))}
+
+/* ---------- Maroondah City Council campaign look: flat blocks of colour, big headline, no gradients ---------- */
+.cbanner{display:flex;flex-direction:column}
+.cb-hero{padding:26px 18px 22px}
+.cb-hero h1{font-size:clamp(32px,10vw,46px);font-weight:800;line-height:.98;letter-spacing:-.01em;text-transform:uppercase;margin:0;text-wrap:balance}
+.cb-blocks{display:flex;height:22px}
+.cb-blocks i{flex:1}
+.cstrip{display:flex;height:6px}
+.cstrip i{flex:1}

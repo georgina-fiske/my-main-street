@@ -27,7 +27,7 @@
   LB.band = (title, brand, links) => `<header class="band"><div class="wrap">
       <div class="brandline">${App.logoImg(brand)}<div><div class="small-street">${esc(brand.place || C.siteName)}</div><div class="title">${esc(title)}</div></div></div>
       <nav aria-label="Pages">${(links || []).map((l) => `<a href="${esc(l[0])}"${l[2] ? ' aria-current="page"' : ''}>${esc(l[1])}</a>`).join('')}${D.user ? '<a href="#" data-act="logout">Log out</a>' : ''}</nav>
-    </div></header>`;
+    </div>${App.colourStrip(brand)}</header>`;
   LB.footer = () => `<footer class="foot"><p>${esc(C.siteName)}. <a href="${App.mainOrigin()}/safety">Safety and privacy</a></p></footer>`;
   LB.page = (inner) => `<main class="wrap" id="main">${inner}</main>${LB.footer()}`;
   LB.fb = () => App.fruitbowlBrand();

@@ -31,7 +31,7 @@ Open `sql/live/03_croydon.sql`. Replace the example shop with the real shop list
 
 ### 4b. Croydon's look and the lock-down
 Run these two, each in its own **new query** (they don't wipe anything):
-- `sql/live/04_croydon_look.sql` gives Croydon its logo and the Maroondah City Council colours (blue and amber, with green and orange on the prize buttons). Run it again now if you ran the older version.
+- `sql/live/04_croydon_look.sql` gives Croydon the Maroondah City Council look: no association logo, the headline CROYDON IS OPEN FOR BUSINESS, and the Council's four colours (blue, green, orange, amber) in mixed flat blocks. Run it again now if you ran an older version.
 - `sql/live/05_lockdown.sql` hides the budget limit from the public.
 - `sql/live/06_offline.sql` lets a phone with no signal save a sign-up and send it later, and flags a possible duplicate.
 

@@ -4,7 +4,8 @@
 
 insert into areas (id, name, type, council_area, status, created_by, sort_order, brand, email_name, email_address, reply_to)
 values ('croydon', 'Croydon Main Street Association', 'Street Association', 'Maroondah', 'setting up', 'fruitbowl', 1,
-  jsonb_build_object('place', 'Croydon Main Street', 'color', '#006BB6', 'accent', '#FCBF45', 'logo', '/img/croydon-logo.svg',
+  jsonb_build_object('place', 'Croydon Main Street', 'color', '#006BB6', 'accent', '#FCBF45', 'logo', '',
+    'headline', 'CROYDON IS OPEN FOR BUSINESS', 'palette', jsonb_build_array('#006BB6', '#03AD50', '#F5813B', '#FCBF45'),
     'welcome', 'Croydon Main Street is My Main Street! Scan, spin and win.', 'web', 'croydon.my-mainstreet.com.au'),
   'Croydon Main Street', 'croydon@my-mainstreet.com.au', 'hello@my-mainstreet.com.au')
 on conflict (id) do nothing;

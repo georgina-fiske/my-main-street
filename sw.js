@@ -8,7 +8,7 @@ const FILES = [
   '/js/config.js', '/js/db.js', '/js/util.js', '/js/localdb.js', '/js/messages.js', '/js/ui.js',
   '/js/pages-customer.js', '/js/pages-staff.js', '/js/pages-admin.js', '/js/pages-join.js', '/js/pages-auth.js', '/js/pages-demo.js',
   '/js/live-core.js', '/js/live-customer.js', '/js/live-desk.js', '/js/live-shop.js', '/js/live-admin.js', '/js/live-offline.js', '/js/main.js',
-  '/img/croydon-logo.svg', '/img/fruitbowl-logo-white.png'
+  '/img/fruitbowl-logo-white.png'
 ];
 
 self.addEventListener('install', (e) => {
