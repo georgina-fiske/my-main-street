@@ -89,6 +89,7 @@ exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netli
     name: s.name, value: s.prize.value, code: s.code, useBy: dayName(s.use_by), useByShort: dayName(s.use_by).replace(/^\w+\s/, ''),
     event: (ev && ev.name) || 'the festival', place, area: area.id, origin,
     couponUrl: origin + couponPath, link: host + couponPath, shopsUrl: origin + '/shops', safetyUrl: 'https://' + baseDomain + '/safety',
+    color: area.brand && area.brand.color, accent: area.brand && area.brand.accent,
     fromName: area.email_name || place, fromAddress: area.email_address, replyTo: area.reply_to || undefined,
     unsubUrl: origin + '/u/' + priv.unsub
   };
