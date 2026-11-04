@@ -6,11 +6,7 @@
   node_bundler = "esbuild"
   included_files = ["js/messages.js"]
 
-# The email sender lives at /.netlify/functions/send-coupon
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+# The send-message functions live at /.netlify/functions/... and need no redirect.
 
 # Every page address (/croydon, /c/CMS-1234, /demo/4, /desk ...) opens the app.
 # Real files (css, js, images) are still served as they are.
