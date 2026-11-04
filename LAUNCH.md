@@ -33,6 +33,7 @@ Open `sql/live/03_croydon.sql`. Replace the example shop with the real shop list
 Run these two, each in its own **new query** (they don't wipe anything):
 - `sql/live/04_croydon_look.sql` gives Croydon its logo and orange/gold colours.
 - `sql/live/05_lockdown.sql` hides the budget limit from the public.
+- `sql/live/06_offline.sql` lets a phone with no signal save a sign-up and send it later, and flags a possible duplicate.
 
 ### 5. Make your login
 Supabase > Authentication > Users > Add user > Create new user. Use your email and a strong password. Tick **Auto Confirm User**.
@@ -86,6 +87,17 @@ Tell Claude "go live". Claude sets `mode: 'live'` in `js/config.js` and pushes. 
 
 ### 14. Print
 Admin > Overview has two QR codes. Download the PNG for the marquee poster (sign-up) and the shop one-pager (shop set-up).
+
+## If the internet drops (offline mode)
+- **Open each iPad's desk page once with Wi-Fi first** (a few minutes before the doors open), and log in. That saves the page and the customer list on the iPad. After that it keeps working with no signal.
+- **Customers' phones:** if their signal drops after the page has opened, sign-up still works. They see their number and "Saved — will sync". It sends itself when they get signal.
+- **Prize desk taps:** each tap shows at once and is kept on the iPad. A bar says "Saved — will sync". It sends itself when the signal returns, even after a refresh or restart.
+- **Two limits, on purpose:**
+  - The same person on two offline phones can sign up twice. When both reconnect, the second is flagged "Possible duplicate" (in Admin and on the desk). A person decides. Nothing is merged for you.
+  - If both iPads are offline together, each counts its own prizes and budget. They agree again when either reconnects. A prize or the budget can be slightly over-given.
+- **A tap the system refuses** (for example, another iPad already gave that person a prize) shows a red box on the desk, "These did not save", until someone taps "Got it".
+- **A customer who signed up offline can't be found on the desk** until their phone has sent the sign-up. Ask them to wait a minute for signal, or use the paper log.
+- **The paper backup log is still the last resort** for a long, total outage. It needs no battery and no signal.
 
 ## On the day
 - Two iPads at `https://croydon.my-mainstreet.com.au/desk`, each logged in with its own desk login.

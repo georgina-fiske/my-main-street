@@ -256,8 +256,10 @@
     const brand = page.brand ? page.brand(ctx) : App.fruitbowlBrand();
     App.applyBrand(brand);
     const snap = snapshotFields();
+    const opened = [...root().querySelectorAll('details')].map((d) => d.open);   // a section someone opened stays open when the screen refreshes
     root().innerHTML = page.render(ctx, brand);
     if (App.skipRestore) App.skipRestore = false; else restoreFields(snap);
+    root().querySelectorAll('details').forEach((d, i) => { if (opened[i]) d.open = true; });
     document.title = (page.title ? page.title(ctx, brand) + ' – ' : '') + C.siteName + (brand.place ? ' – ' + brand.place : '') + (App.isDemo() ? ' (demo)' : '');
     ctx.rendered = true;
     if (page.after) page.after(ctx, brand);

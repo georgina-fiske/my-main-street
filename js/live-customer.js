@@ -5,6 +5,7 @@
   const LP = App.livePages, LB = App.live;
 
   const areaOf = (ctx) => ctx.area || C.demoHomeArea;
+  LB.councilName = (a) => (a && a.council_area ? a.council_area + ' City Council' : 'Council');
   const brandFor = (ctx) => (d0.area(areaOf(ctx)) ? App.brandOf(areaOf(ctx)) : LB.fb());
   const THANKS = `<div class="ticket thanks"><b>Thanks for joining us!</b><br><span class="muted">We're so excited to bring you back to your Main Street.</span></div>`;
   const ls = { get: (k) => App.store.get(k), set: (k, v) => App.store.set(k, v) };
@@ -34,7 +35,7 @@
           <fieldset style="border:0;padding:0;margin:14px 0 0"><legend style="font-weight:700;font-size:15px">Send my coupon by:</legend>
             <div class="row" style="flex-wrap:nowrap"><label class="check" style="margin:4px 14px 0 0"><input type="radio" name="contact" value="email" checked> Email</label>
             <label class="check" style="margin:4px 0 0"><input type="radio" name="contact" value="text"> Text message</label></div></fieldset>
-          <label class="check" style="margin-top:14px"><input type="checkbox" name="optin"> Send me news and offers from ${esc(b.place)} (optional)</label>
+          <label class="check" style="margin-top:14px"><input type="checkbox" name="optin"> <span>I agree to receive news and updates from ${esc(LB.councilName(a))}, the ${esc(b.place)} Traders Association, or related parties (optional). We never sell your details.</span></label>
           <label class="check"><input type="checkbox" name="terms"> <span>I agree to the terms and the <a href="${App.mainOrigin()}/safety" target="_blank" rel="noopener">safety and privacy page</a>. If you're under 18, a parent or guardian must tick this for you.</span></label>
           <p class="err" id="su-err" role="alert" hidden></p>
           <p style="margin-top:14px"><button class="btn sun big" type="submit" ${closed ? 'disabled' : ''}>Sign up</button></p>
@@ -59,11 +60,12 @@
     const bad = LB.checkSignup(d);
     if (bad) return fail(bad);
     const btn = f.querySelector('button[type=submit]'); if (btn) btn.disabled = true;
-    const r = await LB.save('signup', LB.signupArgs(f.dataset.area, d));
+    // Saved on this phone first, then sent. With no signal it still works and sends itself later.
+    const r = await LB.sq.submit(f.dataset.area, d);
     if (btn) btn.disabled = false;
-    if (!r.ok) return fail(r.error);
-    ls.set('msr-code', r.code); ls.set('msr-token', r.token || '');
-    App.go('/c/' + r.code + (r.token ? '?k=' + r.token : ''));
+    if (r.state === 'error') return fail(r.error);
+    if (r.state === 'existing') return App.go('/c/' + r.code);
+    App.go('/c/' + r.code + '?k=' + r.token);
   };
 
   // ---------- 2. the coupon page ----------
@@ -114,12 +116,20 @@
       ${phoneUse(s, ctx)}`;
   }
 
+  // A sign-up that is saved on this phone but not sent yet (no signal): show their number now.
+  function pendingView(e, b) {
+    return `<div class="ticket"><h2>You're in, ${esc(e.args.p_name)}! Now join the line for the wheel.</h2>
+      <span class="muted">Saved on this phone. We'll finish saving it by itself when you have signal. Keep this page.</span></div>${codeBlock(e.code)}
+      <p class="small muted">If the staff can't find your number yet, ask them to try again in a minute.</p>`;
+  }
+
   LP.coupon = {
     brand(ctx) { const s = d0.signup(ctx.params.code); return s ? App.brandOf(s.area) : brandFor(ctx); },
     title: () => 'Your coupon',
     async after(ctx) {
       if (ctx.fetched) return;
       ctx.fetched = true;
+      if (LB.waiting()) LB.offlineKick();
       if (ctx.params.token) await D.fetchPass(ctx.params.code, ctx.params.token);
       ctx.loaded = true;
       App.render();
@@ -129,13 +139,16 @@
       if (!ctx.loaded) return App.custPage(b, '<p>Loading your coupon…</p>');
       const s = d0.signup(ctx.params.code);
       const net = D.offline ? '<p class="small muted" role="status">Can\'t reach the system right now. This will update by itself.</p>' : '';
+      const local = LB.sq.find(ctx.params.code);
+      if (!s && local && local.status === 'pending') return App.custPage(b, pendingView(local, b) + LB.syncBar());
+      if (!s && local && local.status === 'failed') return App.custPage(b, `<div class="statecard bad"><h3>We couldn't save your sign-up</h3><p style="margin:0">${esc(local.error || 'Please ask the staff for help.')}</p></div>`);
       if (!s) {
         // Someone who signed up twice sees their code, but not the secret link.
         const code = ctx.params.code;
         return App.custPage(b, `<div class="ticket"><h2>You've already signed up.</h2><span class="muted">Show this code to the staff at the wheel. When you win, we'll send your coupon by email or text.</span></div>${codeBlock(code)}
           <p class="small muted">Can't find your link? Ask the staff at the desk.</p>`);
       }
-      return App.custPage(b, `${couponState(s, ctx, b)}${net}`);
+      return App.custPage(b, `${couponState(s, ctx, b)}${net}${LB.syncBar()}`);
     }
   };
 
@@ -200,9 +213,9 @@
         <p class="muted">The short version: we only collect what we need, we keep it in Australia, we never sell it, and you can ask us to delete it.</p>
         ${sec(1, 'Who runs it', `<p>My Main Street is built and run by Georgina Fiske, trading as ${esc(C.runBy)}, sole trader, ABN 97 221 925 993, Melbourne. It's delivered with ${esc(C.homeCompany)} for Croydon Main Street.</p>`)}
         ${sec(2, 'What we collect', `<p>Your first and last name, email and mobile, postcode, your coupon, where and when it was used, and whether you want news. We send you messages through whichever one you choose at sign-up.</p>`)}
-        ${sec(3, 'Why', `<p>To send your coupon, check it at shops, pay shops back, and (only if you say yes) send you news.</p>`)}
+        ${sec(3, 'Why', `<p>To send your coupon, check it at shops, pay shops back, and (only if you say yes) send you news and updates from ${esc('Maroondah City Council')}, the Traders Association, or related parties. ${ph('lawyer to confirm this wording')}</p>`)}
         ${sec(4, 'Where it\'s stored', `<ul><li>Database: Sydney, Australia (Supabase)</li><li>Website: Netlify</li><li>Emails: Resend</li><li>Texts: ClickSend</li></ul>`)}
-        ${sec(5, 'Who can see it', `<p>${esc(C.runBy)}, ${esc(C.homeCompany)} and Croydon Main Street Association, for Croydon only. Shops only see a coupon when it's shown to them.</p>`)}
+        ${sec(5, 'Who can see it', `<p>${esc(C.runBy)}, ${esc(C.homeCompany)} and the Croydon Main Street Traders Association, for Croydon only. Shops only see a coupon when it's shown to them.</p>`)}
         ${sec(6, 'We never sell your data', `<p>Never. Not to anyone.</p>`)}
         ${sec(7, 'How long we keep it', `<p>Until you unsubscribe or ask us to delete it. ${ph('lawyer to confirm this wording')}</p>`)}
         ${sec(8, 'Your choices', `<p>Unsubscribe from any email, reply STOP to any text, or email hey@chaosmaster.com.au to see or delete your data.</p>`)}

@@ -25,6 +25,7 @@
   const isLive = (window.CONFIG.mode === 'live' || !!preview) && !demoPage;
   const DB = {
     listeners,
+    transforms: [],      // run after every load, before the screen redraws (used to keep not-yet-synced taps visible)
     live: isLive,
     ready: false,
     error: null,
@@ -90,6 +91,43 @@
   DB.refresh = async () => {};
   DB.token = async () => null;
 
+
+  // ---------- a copy on the device, so a staff iPad keeps working with no signal ----------
+  // Used only by logged-in staff. It holds the same data the screen already shows. It is wiped when they log out.
+  const CACHE = 'msr-cache-v1';
+  let lastSave = 0;
+  function saveCache() {
+    if (Date.now() - lastSave < 8000) return;
+    lastSave = Date.now();
+    try {
+      const st = DB.state;
+      localStorage.setItem(CACHE, JSON.stringify({ at: Date.now(), user: DB.user, staff: DB.staff, state: { settings: st.settings, areas: st.areas, events: st.events, shops: st.shops, prizes: st.prizes, signups: st.signups } }));
+    } catch (e) { /* storage full or blocked: carry on without it */ }
+  }
+  function readCache() { try { return JSON.parse(localStorage.getItem(CACHE) || 'null'); } catch (e) { return null; } }
+  function clearCache() { try { localStorage.removeItem(CACHE); } catch (e) {} }
+  // Everyone: the public pages' data (street, festival, shops). Nothing personal. Lets a page open again with no signal.
+  const PUB = 'msr-pub-v1';
+  let lastPub = 0;
+  function savePub() {
+    if (Date.now() - lastPub < 8000) return;
+    lastPub = Date.now();
+    try { const st = DB.state; localStorage.setItem(PUB, JSON.stringify({ at: Date.now(), state: { settings: st.settings, areas: st.areas, events: st.events, shops: st.shops } })); } catch (e) { /* ignore */ }
+  }
+  DB.applyLocal = () => DB.transforms.forEach((fn) => { try { fn(); } catch (e) {} });
+  DB.restoreCache = function () {
+    let c = readCache();
+    if (!(c && c.user && DB.user && c.user.email === DB.user.email)) {
+      try { c = JSON.parse(localStorage.getItem(PUB) || 'null'); } catch (e) { c = null; }          // not a known staff login: use the public copy
+      if (!c) return false;
+      c = { at: c.at, state: Object.assign({ prizes: [], signups: Object.values(passes) }, c.state) };
+    }
+    Object.assign(DB.state, c.state);
+    DB.transforms.forEach((fn) => { try { fn(); } catch (e) {} });
+    DB.ready = true; DB.error = null; DB.fromCache = c.at;
+    return true;
+  };
+
   async function load() {
     if (loading) { again = true; return loading; }
     loading = (async () => {
@@ -103,6 +141,8 @@
           else DB.state[t] = res[i].data;
         });
         if (!isStaff()) { DB.state.prizes = []; DB.state.signups = Object.values(passes); }
+        DB.transforms.forEach((fn) => { try { fn(); } catch (e) {} });
+        if (isStaff()) saveCache(); else savePub();
         DB.ready = true;
         DB.error = null;
         setOffline(false);
@@ -122,13 +162,20 @@
   function soon() { clearTimeout(timer); timer = setTimeout(load, 150); }
 
   async function refreshStaff() {
-    const { data } = await sb.auth.getSession();
-    const user = data && data.session && data.session.user;
+    let user = null, session = null;
+    try { const { data } = await sb.auth.getSession(); session = data && data.session; user = session && session.user; } catch (e) { /* offline */ }
     DB.user = user ? { email: (user.email || '').toLowerCase() } : null;
+    const cached = readCache();
+    // No signal and the login can't be re-checked: trust the copy kept on this device, but only for the same login.
+    if (!user && cached && cached.user && cached.staff && cached.staff.role && (navigator.onLine === false)) {
+      DB.user = cached.user; DB.staff = cached.staff; DB.cachedAuth = true; return;
+    }
+    DB.cachedAuth = false;
     DB.staff = {};
     if (user) {
       const r = await sb.rpc('staff_me');
       if (r && r.data && r.data.role) DB.staff = r.data;
+      else if (r && r.error && cached && cached.user && cached.user.email === DB.user.email && cached.staff) DB.staff = cached.staff;   // couldn't reach the system: use the last known level
     }
   }
 
@@ -184,7 +231,7 @@
       return error ? { ok: false, error: error.message || 'That password did not work.' } : { ok: true };
     };
     DB.refresh = async () => { await refreshStaff(); await load(); };
-    DB.signOut = async () => { await sb.auth.signOut(); DB.user = null; DB.staff = {}; DB.state.signups = Object.values(passes); DB.state.prizes = []; notify(); };
+    DB.signOut = async () => { clearCache(); await sb.auth.signOut(); DB.user = null; DB.staff = {}; DB.state.signups = Object.values(passes); DB.state.prizes = []; notify(); };
     DB.token = async () => { const { data } = await sb.auth.getSession(); return data && data.session && data.session.access_token; };
     // Send the coupon by email or text (Netlify function). Only logged-in staff can do this.
     DB.notifyCoupon = async (code) => {
@@ -205,7 +252,13 @@
     sb = window.supabase.createClient(c.url, c.anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: sharedStorage() } });
     liveExtras();
     await refreshStaff();
-    await load();
+    // With no signal the library retries for several seconds. Don't make people stare at "Loading…":
+    // open from the copy kept on this device straight away (or after 3.5 seconds on a very weak signal).
+    const first = load();
+    if (navigator.onLine === false) { if (DB.restoreCache()) { setOffline(true); notify(); } }
+    else await Promise.race([first, new Promise((r) => setTimeout(r, 3500))]);
+    if (!DB.ready && DB.restoreCache()) { setOffline(true); notify(); }
+    else if (!DB.ready) await first;
     sb.auth.onAuthStateChange((evt) => {
       if (evt === 'SIGNED_IN' || evt === 'SIGNED_OUT' || evt === 'TOKEN_REFRESHED' || evt === 'PASSWORD_RECOVERY') setTimeout(async () => { await refreshStaff(); await load(); }, 0);
     });
@@ -215,7 +268,7 @@
     // Backup: refresh when the tab comes back, and every 30 seconds.
     document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
     setInterval(() => { if (!document.hidden) load(); }, 30000);
-    window.addEventListener('online', () => load());
+    window.addEventListener('online', async () => { await refreshStaff(); load(); });
     window.addEventListener('offline', () => setOffline(true));
   };
 
@@ -226,7 +279,7 @@
       const { data, error } = await sb.rpc(name, args || {});
       if (error) {
         if (isNet(error)) { setOffline(true); return { ok: false, network: true, error: 'No connection. Please try again.' }; }
-        return { ok: false, error: 'Something went wrong. Please try again.' };
+        return { ok: false, transport: true, error: 'Something went wrong. Please try again.' };   // not an answer from the app (for example a login that ran out): callers that queue keep the item and try again
       }
       setOffline(false);
       if (!opts || opts.reload !== false) await load();

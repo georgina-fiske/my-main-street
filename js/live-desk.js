@@ -54,19 +54,20 @@
           <fieldset style="border:0;padding:0;margin:10px 0 0"><legend style="font-weight:700;font-size:15px">Send their coupon by:</legend>
             <div class="row" style="flex-wrap:nowrap"><label class="check" style="margin:4px 14px 0 0"><input type="radio" name="contact" value="email" checked> Email</label>
             <label class="check" style="margin:4px 0 0"><input type="radio" name="contact" value="text"> Text message</label></div></fieldset>
-          <label class="check"><input type="checkbox" name="optin"> They'd like news and offers (optional)</label>
+          <label class="check"><input type="checkbox" name="optin"> <span>They agree to receive news and updates from ${esc(LB.councilName(d0.area(area)))}, the ${esc(App.brandOf(area).place)} Traders Association, or related parties (optional)</span></label>
           <label class="check"><input type="checkbox" name="terms"> They agree to the terms and the safety and privacy page (a parent or guardian, if under 18)</label>
           <p class="err" id="ss-err" role="alert" hidden></p>
           <p style="margin-top:12px"><button class="btn" type="submit">Fill out the form</button></p></form>`;
       const staffDone = staffRes ? `<div class="result" role="status"><p style="margin:0">Signed up: <b>${esc(staffRes.name)}</b></p>
-          <div class="bigcode">${esc(staffRes.code)}</div><p class="muted" style="margin:4px 0 8px">Show them this code. They can now join the line.</p>
+          <div class="bigcode">${esc(staffRes.code)}</div><p class="muted" style="margin:4px 0 8px">${staffRes.local ? 'Saved on this iPad. It will send by itself. ' : ''}Show them this code. They can now join the line.</p>
           <button class="btn ghost small" data-act="ldesk-staff-next">Next person</button></div>`
         : S.staffExisting ? `<div class="result" role="status"><p style="margin:0"><b>They've already signed up.</b> Their code is</p><div class="bigcode">${esc(S.staffExisting)}</div>
           <button class="btn ghost small" data-act="ldesk-staff-next">Next person</button></div>` : '';
 
       return `${LB.band('Prize desk', b, [['/desk', 'Prize desk', true]])}<main class="wrap" id="main">
         ${LB.netBanner('the name, code and prize')}
-        ${saving ? `<div class="savebar" role="status">${S.saveState === 'slow' ? '<b>Not saved yet. Hold on…</b> Still trying.' : 'Saving…'}</div>` : ''}
+        ${LB.syncBar()}
+        ${LB.dq.conflicts().length ? `<div class="statecard bad" role="alert"><h3>These did not save. Please check them by hand.</h3><ul style="margin:6px 0">${LB.dq.conflicts().map((c) => `<li><b>${esc(c.who)}</b> (${esc(c.what)}): ${esc(c.msg || 'could not be saved')}</li>`).join('')}</ul><button class="btn ghost small" data-act="ldesk-conflict-ok">Got it</button></div>` : ''}
         <section class="panel meter ${warn ? 'warn' : ''}" aria-label="Prize budget"><div class="row" style="justify-content:space-between"><b>${money(spent)} of ${money(limit)} spent</b><span class="muted">${esc(a ? a.name : '')}</span></div>
           <div class="bar big"><i style="width:${pct}%"></i></div></section>
         <div class="deskgrid gap">
@@ -75,7 +76,7 @@
             <form data-form="ldeskfind" style="margin-top:10px"><label for="desk-in">Or type their 4-digit number</label>
               <input id="desk-in" name="code" inputmode="numeric" placeholder="e.g. 4821" autocomplete="off" ${saving ? 'disabled' : ''}></form>
             ${ok ? `<div class="next gap"><div class="muted">At the wheel</div><div class="nextname">${esc(cur.name)}</div><div>${esc(cur.code)}</div>
-                ${cur.prize ? `<span class="tag no">Already spun: ${esc(cur.prize.name)}. One spin per person.</span>` : '<p style="margin:8px 0 0"><b>Now tap the prize the wheel landed on.</b></p>'}</div>`
+                ${cur.dup_of ? `<p class="statecard bad" style="margin:8px 0"><b>Possible duplicate</b> of ${esc(cur.dup_of)}. Ask a person on the team before giving a prize.</p>` : ''}${cur.prize ? `<span class="tag no">Already spun: ${esc(cur.prize.name)}. One spin per person.</span>` : '<p style="margin:8px 0 0"><b>Now tap the prize the wheel landed on.</b></p>'}</div>`
               : cur ? '<div class="next gap">That code is for a different street.</div>'
               : S.deskCode ? `<div class="next gap">No sign-up with code ${esc(S.deskCode)}. Check their screen and try again.</div>` : ''}
             <div class="wheelgrid">${wheel}</div>
@@ -90,6 +91,7 @@
     after(ctx) {
       if (!ctx.started) {
         ctx.started = true;
+        if (LB.waiting()) LB.offlineKick();
         // keep every iPad in step: refresh often (live updates arrive too)
         const poll = setInterval(() => { if (!document.hidden) D.load(); }, 3000);
         const tick = setInterval(() => { if (App.state.lastAward && Date.now() - App.state.lastAward.at < 11000 && App.ctx === ctx) App.render(); }, 1000);
@@ -102,36 +104,25 @@
   App.forms.ldeskfind = (f) => pick(new FormData(f).get('code'));
   App.acts['ldesk-scan'] = () => U.openScanner({ title: 'Scan their code', onCode: pick, after: () => focusId('desk-in') });
 
-  App.acts['ldesk-award'] = async (b) => {
+  App.acts['ldesk-award'] = (b) => {
     const S = App.state, ctx = App.ctx, area = deskArea(ctx);
-    if (S.saving) return;
     const cur = d0.signup(S.deskCode);
     const p = d0.prizesOf(area).find((x) => Number(x.id) === Number(b.dataset.prize));
     if (!cur || !p || cur.prize) return;
-    S.saving = { code: cur.code }; S.saveState = 'saving'; App.render();
-    const r = await LB.save('award_prize', { p_code: cur.code, p_prize: p.id }, { state: (st) => { S.saveState = st; App.render(); } });
-    S.saving = null;
-    if (!r.ok) { U.toast(r.error, true); App.render(); return; }
+    // Shown at once and kept on this iPad. It is sent in the background, and again if the signal drops.
+    LB.dq.award(cur, p);
     S.lastAward = { code: cur.code, name: cur.name, prize: p.name, value: Number(p.value), at: Date.now() };
     S.deskCode = ''; S.notice = '';
     App.render(); focusId('desk-in');
-    // tell the customer: email or text for a coupon (small prizes are handed over, so nothing to send)
-    if (p.value > 0) {
-      const n = await D.notifyCoupon(cur.code);
-      S.notice = n.ok ? (n.message || 'Their coupon was sent.') : (n.error + ' Their phone still shows the coupon.');
-      App.render();
-    }
   };
 
   // Undo is there for 10 seconds, to fix a wrong tap.
-  App.acts['ldesk-undo'] = async () => {
+  App.acts['ldesk-undo'] = () => {
     const S = App.state;
-    if (!S.lastAward || S.saving) return;
+    if (!S.lastAward) return;
     if (Date.now() - S.lastAward.at > 10500) { U.toast('Too late to undo.', true); S.lastAward = null; return App.render(); }
-    S.saving = { code: S.lastAward.code }; S.saveState = 'saving'; App.render();
-    const r = await LB.save('undo_prize', { p_code: S.lastAward.code }, { state: (st) => { S.saveState = st; App.render(); } });
-    S.saving = null;
-    if (!r.ok) U.toast(r.error, true); else { S.lastAward = null; U.toast('Undone'); }
+    LB.dq.undo(S.lastAward.code);
+    S.lastAward = null; U.toast('Undone');
     App.render();
   };
 
@@ -140,12 +131,12 @@
     const err = (m) => { const e = document.getElementById('ss-err'); if (e) { e.textContent = m; e.hidden = false; } };
     const bad = LB.checkSignup(d);
     if (bad) return err(bad);
-    S.saving = { code: '' }; S.saveState = 'saving'; App.render();
-    const r = await LB.save('signup', LB.signupArgs(f.dataset.area, d), { state: (st) => { S.saveState = st; App.render(); } });
-    S.saving = null;
-    if (!r.ok) { App.render(); return err(r.error); }
-    if (r.existing) { S.staffExisting = r.code; S.staffCode = null; } else { S.staffCode = r.code; S.staffExisting = null; }
+    const r = await LB.sq.submit(f.dataset.area, d, { staff: true });
+    if (r.state === 'error') return err(r.error);
+    if (r.state === 'existing') { S.staffExisting = r.code; S.staffCode = null; } else { S.staffCode = r.code; S.staffExisting = null; }
     App.render();
+    D.load();                       // refresh in the background: with no signal it would otherwise make the desk wait
   };
+  App.acts['ldesk-conflict-ok'] = () => { LB.dq.clearConflicts(); App.render(); };
   App.acts['ldesk-staff-next'] = () => { App.state.staffCode = null; App.state.staffExisting = null; App.render(); };
 })();

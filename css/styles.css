@@ -375,3 +375,4 @@ body.embed .intro{display:none}
 .dash input[type=date]{min-width:0;width:100%}
 .dash .qrcard p{overflow-wrap:anywhere}
 @media (max-width:560px){.dash .grid.two,.dash .grid.duo{grid-template-columns:1fr}}
+.savebar.ok{background:var(--surface);color:var(--ink);border-top:3px solid var(--tab-line,var(--euc))}
