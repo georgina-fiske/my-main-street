@@ -44,10 +44,13 @@
   };
 
   // ---- colours ----
+  // Text colour for a coloured background: whichever of white or dark ink has the better contrast (WCAG).
   U.textOn = (hex) => {
     const h = String(hex || '#000000').replace('#', '');
-    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
-    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.6 ? '#1E0B45' : '#FFFFFF';
+    const ch = (i) => { const v = parseInt(h.slice(i, i + 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const L = 0.2126 * ch(0) + 0.7152 * ch(2) + 0.0722 * ch(4);
+    const DARK = 0.0125;                       // luminance of the dark ink #1E0B45
+    return (1.05) / (L + 0.05) >= (L + 0.05) / (DARK + 0.05) ? '#FFFFFF' : '#1E0B45';
   };
 
   // ---- codes ----

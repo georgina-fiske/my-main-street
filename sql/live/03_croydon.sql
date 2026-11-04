@@ -4,7 +4,7 @@
 
 insert into areas (id, name, type, council_area, status, created_by, sort_order, brand, email_name, email_address, reply_to)
 values ('croydon', 'Croydon Main Street Association', 'Street Association', 'Maroondah', 'setting up', 'fruitbowl', 1,
-  jsonb_build_object('place', 'Croydon Main Street', 'color', '#F29400', 'accent', '#F9CD08', 'logo', '/img/croydon-logo.svg',
+  jsonb_build_object('place', 'Croydon Main Street', 'color', '#006BB6', 'accent', '#FCBF45', 'logo', '/img/croydon-logo.svg',
     'welcome', 'Croydon Main Street is My Main Street! Scan, spin and win.', 'web', 'croydon.my-mainstreet.com.au'),
   'Croydon Main Street', 'croydon@my-mainstreet.com.au', 'hello@my-mainstreet.com.au')
 on conflict (id) do nothing;
@@ -18,11 +18,11 @@ where not exists (select 1 from events where area = 'croydon');
 -- The wheel: 12 slices, 5 prizes. The cap is how many can be given out in total.
 -- $5 x 360 = $1,800, $10 x 180 = $1,800, $50 x 18 = $900. That is $4,500 of the $5,000 budget.
 insert into prizes (area, name, value, stock, color, sort_order) values
-  ('croydon', 'Chocolate bar', 0,   150, '#8B5A2B', 1),
-  ('croydon', 'Bubbles',       0,   120, '#6BE0CF', 2),
-  ('croydon', '$5 coupon',     5,   360, '#560CC9', 3),
-  ('croydon', '$10 coupon',    10,  180, '#3E88F7', 4),
-  ('croydon', '$50 coupon',    50,  18,  '#EB4870', 5);
+  ('croydon', 'Chocolate bar', 0,   150, '#03AD50', 1),
+  ('croydon', 'Bubbles',       0,   120, '#FCBF45', 2),
+  ('croydon', '$5 coupon',     5,   360, '#006BB6', 3),
+  ('croydon', '$10 coupon',    10,  180, '#F5813B', 4),
+  ('croydon', '$50 coupon',    50,  18,  '#03AD50', 5);
 
 -- The shops: 151 businesses from your list. Every shop takes coupons.
 -- The Traders Association is hidden (it is not a shop). Hide or add shops later in Admin > Shops.

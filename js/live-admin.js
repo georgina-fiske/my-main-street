@@ -55,11 +55,11 @@
     const lab = (ms) => new Date(ms).toLocaleString('en-AU', step === 864e5 ? { day: 'numeric', month: 'short' } : { weekday: 'short', hour: 'numeric', hour12: true });
     return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Running totals: ${A[n - 1]} sign-ups and ${B[n - 1]} coupons won">
       ${[0, 0.5, 1].map((f) => `<line class="ax" x1="${L}" x2="${W - R}" y1="${y(max * f).toFixed(1)}" y2="${y(max * f).toFixed(1)}"/><text x="${L - 6}" y="${(y(max * f) + 4).toFixed(1)}" text-anchor="end">${Math.round(max * f)}</text>`).join('')}
-      <polygon points="${x(0)},${y(0)} ${pts(A)} ${x(n - 1)},${y(0)}" fill="var(--euc)" opacity=".12"/>
-      <polyline points="${pts(A)}" fill="none" stroke="var(--euc)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+      <polygon points="${x(0)},${y(0)} ${pts(A)} ${x(n - 1)},${y(0)}" fill="var(--chart)" opacity=".14"/>
+      <polyline points="${pts(A)}" fill="none" stroke="var(--chart)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
       <polyline points="${pts(B)}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>
       <text x="${L}" y="${H - 6}">${esc(lab(start))}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${esc(lab(start + (n - 1) * step))}</text></svg>
-      <p class="legend"><span><i style="background:var(--euc)"></i>Sign-ups (${A[n - 1]})</span><span><i style="background:var(--ink)"></i>Coupons won (${B[n - 1]})</span></p>`;
+      <p class="legend"><span><i style="background:var(--chart)"></i>Sign-ups (${A[n - 1]})</span><span><i style="background:var(--ink)"></i>Coupons won (${B[n - 1]})</span></p>`;
   }
 
   // ---------- the spreadsheet ----------
