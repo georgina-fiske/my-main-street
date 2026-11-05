@@ -239,7 +239,7 @@
         const token = await DB.token();
         const r = await fetch('/.netlify/functions/send-coupon', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + (token || '') }, body: JSON.stringify({ code }) });
         const j = await r.json().catch(() => ({}));
-        return r.ok ? j : { ok: false, error: j.error || 'The message could not be sent.' };
+        return r.ok && typeof j.ok === 'boolean' ? j : { ok: false, error: j.error || 'The message could not be sent.' };
       } catch (e) { return { ok: false, error: 'The message could not be sent.' }; }
     };
   }

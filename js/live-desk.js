@@ -41,6 +41,7 @@
       const canUndo = undoLeft > 0 && last && (!last.redeemed || last.redeemed_at === 'desk');
       const result = last && last.prize ? `<div class="who" role="status"><b>${esc(S.lastAward.name)} won ${esc(S.lastAward.prize)}.</b>
           ${S.lastAward.value > 0 ? (S.notice ? esc(S.notice) : 'Sending their coupon…') : 'Hand it over now.'}
+          ${S.noticeBad && S.lastAward.value > 0 ? ` <button class="btn small" data-act="ldesk-resend">Send again</button>` : ''}
           ${canUndo ? ` <button class="btn ghost small" data-act="ldesk-undo">Undo (${undoLeft}s)</button>` : ''}</div>` : '';
 
       const form = `<form data-form="ldeskstaff" data-area="${esc(area)}" novalidate>
@@ -136,6 +137,14 @@
     if (r.state === 'existing') { S.staffExisting = r.code; S.staffCode = null; } else { S.staffCode = r.code; S.staffExisting = null; }
     App.render();
     D.load();                       // refresh in the background: with no signal it would otherwise make the desk wait
+  };
+  App.acts['ldesk-resend'] = async () => {
+    const S = App.state;
+    if (!S.lastAward) return;
+    S.notice = 'Sending…'; App.render();
+    const n = await D.notifyCoupon(S.lastAward.code);
+    S.notice = n.ok ? (n.message || 'Their coupon was sent.') : (n.error + ' Their phone still shows the coupon.'); S.noticeBad = !n.ok;
+    App.render();
   };
   App.acts['ldesk-conflict-ok'] = () => { LB.dq.clearConflicts(); App.render(); };
   App.acts['ldesk-staff-next'] = () => { App.state.staffCode = null; App.state.staffExisting = null; App.render(); };

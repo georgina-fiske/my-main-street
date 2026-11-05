@@ -24,27 +24,42 @@ const dayName = (iso) => {
 };
 const e164 = (m) => '+61' + String(m).replace(/\s/g, '').replace(/^0/, '');
 
-// One text through the chosen provider. Returns true when it was accepted.
+// One text through the chosen provider. Returns {ok: true} or {ok: false, why: "a short reason for the staff screen"}.
+// It never includes a key or password in the reason.
+const REASONS = {
+  INSUFFICIENT_CREDIT: 'ClickSend has no credit left. Top up the account.',
+  NOT_ENOUGH_CREDIT: 'ClickSend has no credit left. Top up the account.',
+  INVALID_RECIPIENT: 'ClickSend says the mobile number is not valid.',
+  INVALID_SENDER_ID: 'ClickSend does not accept the sender name. Clear SMS_FROM in Netlify.',
+  COUNTRY_NOT_ENABLED: 'ClickSend has not enabled Australia for this account.',
+  BLOCKED: 'ClickSend blocked this message.'
+};
 async function sendSms(fetchFn, env, to, text) {
   const auth = 'Basic ' + Buffer.from((env.SMS_USERNAME || '') + ':' + (env.SMS_API_KEY || '')).toString('base64');
   if (env.SMS_PROVIDER === 'clicksend') {
-    const r = await fetchFn('https://rest.clicksend.com/v3/sms/send', {
-      method: 'POST', headers: { authorization: auth, 'content-type': 'application/json' },
-      body: JSON.stringify({ messages: [{ source: 'my-main-street', from: env.SMS_FROM || undefined, to: e164(to), body: text }] })
-    });
-    if (!r.ok) return false;
+    let r;
+    try {
+      r = await fetchFn('https://rest.clicksend.com/v3/sms/send', {
+        method: 'POST', headers: { authorization: auth, 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: [{ source: 'my-main-street', from: env.SMS_FROM || undefined, to: e164(to), body: text }] })
+      });
+    } catch (e) { console.error('ClickSend unreachable'); return { ok: false, why: 'Could not reach ClickSend.' }; }
     const j = await r.json().catch(() => ({}));
     const m = j && j.data && j.data.messages && j.data.messages[0];
-    return !m || m.status === 'SUCCESS';
+    console.error('ClickSend reply', r.status, j && j.response_code, m && m.status);          // for the Netlify function log (no keys in it)
+    if (r.status === 401 || r.status === 403) return { ok: false, why: 'ClickSend did not accept the login. Check SMS_USERNAME and SMS_API_KEY in Netlify.' };
+    if (r.ok && (!m || m.status === 'SUCCESS')) return { ok: true };
+    const code = (m && m.status) || (j && j.response_code) || '';
+    return { ok: false, why: REASONS[code] || 'ClickSend refused it' + (code ? ' (' + String(code).slice(0, 40) + ')' : ' (code ' + r.status + ')') + '.' };
   }
   if (env.SMS_PROVIDER === 'mobilemessage') {
     const r = await fetchFn('https://api.mobilemessage.com.au/v1/messages', {
       method: 'POST', headers: { authorization: auth, 'content-type': 'application/json' },
       body: JSON.stringify({ enable_unicode: false, messages: [{ to: String(to).replace(/\s/g, ''), message: text, sender: env.SMS_FROM, custom_ref: 'mms' }] })
     });
-    return r.ok;
+    return r.ok ? { ok: true } : { ok: false, why: 'The text service refused it (code ' + r.status + ').' };
   }
-  return false;
+  return { ok: false, why: 'No text service is chosen. Set SMS_PROVIDER in Netlify.' };
 }
 
 exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netlify rejects 3-input handlers as the old callback style
@@ -100,7 +115,8 @@ exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netli
     if (!env.SMS_PROVIDER || !env.SMS_API_KEY) return json(200, { ok: false, error: 'Texts are not switched on yet.' });
     if (!priv.mobile) return json(200, { ok: false, error: 'There is no mobile number for this customer.' });
     const m = Messages.sms(d);
-    if (!(await sendSms(fetchFn, env, priv.mobile, m.text))) { console.error('SMS error'); return json(200, { ok: false, error: 'The text could not be sent.' }); }
+    const sent = await sendSms(fetchFn, env, priv.mobile, m.text);
+    if (!sent.ok) return json(200, { ok: false, error: 'The text could not be sent. ' + sent.why });
     message = `Texted to ${priv.mobile}.`;
   } else {
     // 3b. an email

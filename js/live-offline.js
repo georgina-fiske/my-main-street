@@ -130,9 +130,9 @@
     return 'queued';
   };
 
-  let flushing = false;
+  let flushing = false, again = false;
   async function flushAll() {
-    if (flushing) return;
+    if (flushing) { again = true; return; }          // a send is running: go round once more as soon as it ends (don't wait for the timer)
     flushing = true;
     let changed = false;
     try {
@@ -148,14 +148,14 @@
           if (it.name === 'award_prize' && it.value > 0) {
             const n = await D.notifyCoupon(it.code);       // the database sends each coupon only once
             const S = App.state;
-            if (S.lastAward && S.lastAward.code === it.code) S.notice = n.ok ? (n.message || 'Their coupon was sent.') : (n.error + ' Their phone still shows the coupon.');
+            if (S.lastAward && S.lastAward.code === it.code) { S.notice = n.ok ? (n.message || 'Their coupon was sent.') : (n.error + ' Their phone still shows the coupon.'); S.noticeBad = !n.ok; }
           }
         } else {
           // The database said no (for example another iPad already gave them a prize). A person needs to know.
           write(KC, read(KC).concat([{ code: it.code, who: it.who || it.code, what: it.name === 'award_prize' ? it.prizeName : 'undo', msg: r.error, at: Date.now() }]));
         }
       }
-    } finally { flushing = false; }
+    } finally { flushing = false; if (again) { again = false; setTimeout(flushAll, 150); } }
     if (changed || sq.list().length) { try { await D.load(); } catch (e) { /* offline */ } }
     if (App.ctx) App.render();
   }
