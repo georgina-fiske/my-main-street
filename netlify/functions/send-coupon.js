@@ -94,6 +94,10 @@ exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netli
   const ev = (await sb.rows('/rest/v1/events?select=name&id=eq.' + s.event))[0];
   if (!priv || !area) return json(200, { ok: false, error: 'There are no contact details for this customer.' });
 
+  // The street's own wording (Admin > Messages). Anything not set uses the standard wording.
+  const custom = {};
+  for (const r of await sb.rows('/rest/v1/settings?select=key,value&key=like.' + encodeURIComponent('msg:' + area.id + ':*'))) custom[String(r.key).split(':')[2]] = r.value;
+
   const baseDomain = env.BASE_DOMAIN || 'my-mainstreet.com.au';
   const host = area.id + '.' + baseDomain;
   const origin = 'https://' + host;
@@ -106,7 +110,7 @@ exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netli
     couponUrl: origin + couponPath, link: host + couponPath, shopsUrl: origin + '/shops', safetyUrl: 'https://' + baseDomain + '/safety',
     color: area.brand && area.brand.color, accent: area.brand && area.brand.accent, headline: area.brand && area.brand.headline, palette: area.brand && area.brand.palette,
     fromName: area.email_name || place, fromAddress: area.email_address, replyTo: area.reply_to || undefined,
-    unsubUrl: origin + '/u/' + priv.unsub
+    unsubUrl: origin + '/u/' + priv.unsub, custom
   };
 
   let message;

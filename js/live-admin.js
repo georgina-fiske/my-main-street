@@ -3,7 +3,7 @@
   const C = window.CONFIG, D = window.DB, U = window.U, App = window.App, esc = U.esc, money = U.money, d0 = App.d;
   if (!D.live) return;
   const LP = App.livePages, LB = App.live;
-  const TABS = [['overview', 'Overview'], ['signups', 'Sign-ups'], ['shops', 'Shops'], ['prizes', 'Prizes'], ['look', 'Look'], ['people', 'People'], ['pages', 'Site pages']];
+  const TABS = [['overview', 'Overview'], ['signups', 'Sign-ups'], ['shops', 'Shops'], ['prizes', 'Prizes'], ['look', 'Look'], ['messages', 'Messages'], ['people', 'People'], ['pages', 'Site pages']];
   const LEVELS = { chaos: 'Chaos Master', fruitbowl: 'Fruitbowl', council: 'Council', street: 'Street Association', desk: 'Prize desk', shop: 'Shop' };
 
   const adminArea = (ctx) => {
@@ -183,7 +183,8 @@
       else if (tab === 'look') {
         const d = App.draftFor(area);
         body = `<div class="grid duo"><section class="panel">${App.admin.lookForm(area, true)}</section><section><h3 style="margin-bottom:10px">Live preview</h3><div id="brand-preview">${App.admin.brandPreview(d)}</div></section></div>`;
-      } else if (tab === 'pages') body = pagesTab(area);
+      } else if (tab === 'messages') body = messagesTab(area);
+      else if (tab === 'pages') body = pagesTab(area);
       else if (tab === 'people') {
         if (!hq) body = '<div class="panel"><p>Only Fruitbowl can invite people.</p></div>';
         else {
@@ -307,6 +308,104 @@
     const d = Object.fromEntries(new FormData(f));
     const r = await LB.save('shop_add', { p_area: adminArea(App.ctx), p_name: d.name, p_type: d.type || '' });
     if (r.ok) { f.reset(); U.toast('Shop added.'); } else U.toast(r.error, true);
+  };
+
+
+  // ---------- Messages: the wording of the text and the email ----------
+  const PH = [['{name}', 'First name'], ['{value}', 'Coupon amount'], ['{code}', 'Coupon code'], ['{useBy}', 'Use-by date'], ['{useByShort}', 'Short date'], ['{place}', 'Street name'], ['{event}', 'Event name'], ['{link}', 'Coupon link'], ['{shops}', 'Shops link']];
+  const msgKey = (area, k) => 'msg:' + area + ':' + k;
+  const msgNow = (area, k) => D.state.settings[msgKey(area, k)] || '';
+  function sampleFor(area) {
+    const a = d0.area(area) || {}, b = App.brandOf(area), ev = d0.eventsOf(area).slice(-1)[0] || {}, host = area + '.' + C.baseDomain;
+    const useBy = ev.use_by ? U.date(ev.use_by) : 'Mon 30 Nov';
+    return { name: 'Sam', value: 5, code: 'CMS-1234', useBy, useByShort: String(useBy).replace(/^\w+\s/, ''), event: ev.name || 'the festival', place: b.place || a.name, area,
+      origin: 'https://' + host, couponUrl: 'https://' + host + '/c/CMS-1234?k=0123456789abcdef0123', link: host + '/c/CMS-1234?k=0123456789abcdef0123', shopsUrl: 'https://' + host + '/shops',
+      safetyUrl: 'https://' + C.baseDomain + '/safety', unsubUrl: '#', fromName: a.email_name || b.place, fromAddress: a.email_address || 'hello@' + C.baseDomain,
+      color: b.color, accent: b.accent, headline: b.headline, palette: b.palette };
+  }
+  function previewSms(area, text) {
+    const standard = String(text).replace(/\r/g, '').trim() === window.Messages.DEFAULTS.sms;      // the standard wording shortens itself to fit one text
+    const r = window.Messages.sms(Object.assign(sampleFor(area), standard ? {} : { custom: { sms: text } }));
+    const n = r.length, parts = n <= 160 ? 1 : Math.ceil(n / 153);
+    return { html: `<div class="smsbubble">${esc(r.text)}</div>`, n, parts, r };
+  }
+  function previewEmail(area, subject, body) {
+    const r = window.Messages.email(Object.assign(sampleFor(area), { custom: { email_subject: subject, email_body: body } }));
+    return `<p class="muted small" style="margin:0 0 6px"><b>Subject:</b> ${esc(r.subject)}</p><iframe class="emailprev" title="Email preview" sandbox srcdoc="${esc('<body style="margin:0;padding:14px;background:#fff">' + r.html + '</body>')}"></iframe>`;
+  }
+  const chips = (target) => `<div class="chips" aria-label="Words you can add">${PH.map(([ph, label]) => `<button type="button" class="chip" data-act="lmsg-insert" data-target="${target}" data-ph="${esc(ph)}" title="${esc(label)}">${esc(ph)}</button>`).join('')}</div>`;
+  const warnFor = (text, needLink) => {
+    const bad = window.Messages.unknownIn(text), out = [];
+    if (bad.length) out.push('Not a word we know: ' + bad.join(', ') + '. It will show as typed.');
+    if (needLink && !/\{link\}/.test(text)) out.push('There is no {link}, so customers will not get their coupon link.');
+    return out.map((w) => `<p class="warnline">${esc(w)}</p>`).join('');
+  };
+  function messagesTab(area) {
+    const M = window.Messages, D0 = M.DEFAULTS;
+    const sms = msgNow(area, 'sms') || D0.sms, sub = msgNow(area, 'email_subject') || D0.email_subject, body = msgNow(area, 'email_body') || D0.email_body;
+    const ps = previewSms(area, sms);
+    return `<div class="panel"><h3>What customers receive</h3>
+        <p class="muted">Change the wording of the text message and the email here. Tap a word like <code>{name}</code> to add it. The system swaps it for each customer's own details. The buttons, the coupon link and the unsubscribe line in the email are added for you.</p></div>
+      <div class="grid two">
+        <section class="panel"><h3>Text message</h3>
+          <form data-form="lmsg" data-kind="sms">
+            <label for="msg-sms">Text</label><textarea id="msg-sms" name="text" rows="6" maxlength="600" data-input="lmsg-preview">${esc(sms)}</textarea>
+            ${chips('msg-sms')}
+            <div id="sms-meta" class="muted small" style="margin:8px 0">${ps.n} characters. ${ps.parts === 1 ? 'Sends as 1 text.' : 'Sends as ' + ps.parts + ' texts, and costs more.'} One text is up to 160 characters.</div>
+            <div id="sms-warn">${warnFor(sms, true)}</div>
+            <div class="row"><button class="btn" type="submit">Save text</button><button type="button" class="btn ghost" data-act="lmsg-reset" data-kind="sms">Back to standard wording</button></div>
+          </form>
+          <h4 style="margin:16px 0 6px">What it looks like</h4><div id="sms-prev">${ps.html}</div>
+        </section>
+        <section class="panel"><h3>Email</h3>
+          <form data-form="lmsg" data-kind="email">
+            <label for="msg-sub">Subject</label><input id="msg-sub" name="subject" maxlength="150" value="${esc(sub)}" data-input="lmsg-preview">
+            <label for="msg-body">Message</label><textarea id="msg-body" name="body" rows="14" maxlength="3000" data-input="lmsg-preview">${esc(body)}</textarea>
+            ${chips('msg-body')}
+            <p class="muted small" style="margin:8px 0">Leave a blank line between paragraphs. Put <code>**two stars**</code> around words to make them bold. A line with just <code>[buttons]</code> shows the two buttons there.</p>
+            <div id="email-warn">${warnFor(sub + '\n' + body, false)}</div>
+            <div class="row"><button class="btn" type="submit">Save email</button><button type="button" class="btn ghost" data-act="lmsg-reset" data-kind="email">Back to standard wording</button></div>
+          </form>
+          <h4 style="margin:16px 0 6px">What it looks like</h4><div id="email-prev">${previewEmail(area, sub, body)}</div>
+        </section>
+      </div>
+      <p class="muted small">The example uses a made-up customer, "Sam". Texts go out through ClickSend and emails through Resend, the same as before.</p>`;
+  }
+  App.changes['lmsg-preview'] = (el) => {
+    const area = adminArea(App.ctx), q = (id) => document.getElementById(id);
+    if (el.id === 'msg-sms') {
+      const p = previewSms(area, el.value);
+      q('sms-prev').innerHTML = p.html;
+      q('sms-meta').textContent = p.n + ' characters. ' + (p.parts === 1 ? 'Sends as 1 text.' : 'Sends as ' + p.parts + ' texts, and costs more.') + ' One text is up to 160 characters.';
+      q('sms-warn').innerHTML = warnFor(el.value, true);
+    } else {
+      const sub = q('msg-sub').value, body = q('msg-body').value;
+      q('email-prev').innerHTML = previewEmail(area, sub, body);
+      q('email-warn').innerHTML = warnFor(sub + '\n' + body, false);
+    }
+  };
+  App.acts['lmsg-insert'] = (b) => {
+    const t = document.getElementById(b.dataset.target); if (!t) return;
+    const a = t.selectionStart == null ? t.value.length : t.selectionStart, z = t.selectionEnd == null ? a : t.selectionEnd;
+    t.value = t.value.slice(0, a) + b.dataset.ph + t.value.slice(z);
+    t.focus(); t.selectionStart = t.selectionEnd = a + b.dataset.ph.length;
+    App.changes['lmsg-preview'](t);
+  };
+  App.acts['lmsg-reset'] = (b) => {
+    const D0 = window.Messages.DEFAULTS, q = (id) => document.getElementById(id);
+    if (b.dataset.kind === 'sms') { q('msg-sms').value = D0.sms; App.changes['lmsg-preview'](q('msg-sms')); }
+    else { q('msg-sub').value = D0.email_subject; q('msg-body').value = D0.email_body; App.changes['lmsg-preview'](q('msg-body')); }
+    U.toast('Standard wording is back. Press Save to keep it.');
+  };
+  App.forms.lmsg = async (f) => {
+    const area = adminArea(App.ctx), D0 = window.Messages.DEFAULTS, d = Object.fromEntries(new FormData(f));
+    const pairs = f.dataset.kind === 'sms' ? [['sms', d.text, D0.sms]] : [['email_subject', d.subject, D0.email_subject], ['email_body', d.body, D0.email_body]];
+    for (const [kind, text, dflt] of pairs) {
+      const same = String(text).replace(/\r/g, '').trim() === dflt;
+      const r = await LB.save('message_save', { p_area: area, p_kind: kind, p_text: same ? '' : String(text) });
+      if (!r.ok) return U.toast(r.error, true);
+    }
+    U.toast('Saved. The next message sent will use it.');
   };
 
   // ---------- people ----------
