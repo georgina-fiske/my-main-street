@@ -100,6 +100,7 @@
       case 'small': return bad('This is a small prize', 'It is collected at the desk. There is no coupon to use.');
       case 'used': return bad(`Already used at ${esc(res.at)}, ${esc(res.when)}`);
       case 'expired': return bad(`This coupon ran out on ${esc(res.use_by)}`);
+      case 'notyet': return bad(`Not valid yet. It works from ${esc(res.valid_from)}`, `Do not accept it today. It can be used from ${esc(res.valid_from)} until ${esc(res.use_by)}.`);
       case 'otherarea': return bad('This coupon is for a different street');
       case 'valid': return `<div class="statecard good" role="status"><h3><span class="dotg g"></span>Valid. ${money(res.value)} coupon · ${esc(res.name)} ${esc(res.last)}. · Use by ${esc(res.use_by)}.</h3>
           <p class="muted" style="margin:0 0 10px">One coupon per bill. Used in full: no change or cash back.</p>

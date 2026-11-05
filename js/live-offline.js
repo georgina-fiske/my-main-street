@@ -89,11 +89,11 @@
   dq.list = () => read(KD);
   dq.conflicts = () => read(KC);
   dq.clearConflicts = () => write(KC, []);
-  const blank = (s) => { s.prize = null; s.spun_at = null; s.use_by = null; s.redeemed = false; s.redeemed_at = null; s.redeemed_time = null; s.awarded_by = null; s.notified_at = null; };
+  const blank = (s) => { s.prize = null; s.spun_at = null; s.use_by = null; s.valid_from = null; s.redeemed = false; s.redeemed_at = null; s.redeemed_time = null; s.awarded_by = null; s.notified_at = null; };
   const applyAward = (s, p) => {
     const ev = D.state.events.find((x) => x.id === s.event);
     s.prize = { id: p.id, name: p.name, value: Number(p.value) };
-    s.spun_at = new Date().toISOString(); s.use_by = (ev && ev.use_by) || s.use_by;
+    s.spun_at = new Date().toISOString(); s.use_by = (ev && ev.use_by) || s.use_by; s.valid_from = (ev && ev.valid_from) || null;
     if (Number(p.value) === 0) { s.redeemed = true; s.redeemed_at = 'desk'; s.redeemed_time = s.spun_at; }
   };
 

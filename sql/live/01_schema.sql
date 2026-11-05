@@ -67,7 +67,8 @@ create table events (
   area      text not null references areas(id) on delete cascade,
   name      text not null,
   starts_on date not null,
-  use_by    date not null                   -- coupons won at this event must be used by this date
+  use_by    date not null,                  -- coupons won at this event must be used by this date
+  valid_from date                           -- coupons cannot be used before this date (empty = they work straight away)
 );
 
 create table shops (
@@ -129,6 +130,7 @@ create table signups (
   prize        jsonb,                       -- {id, name, value}
   spun_at      timestamptz,
   use_by       date,
+  valid_from   date,                        -- copied from the event when the prize is given
   redeemed     boolean not null default false,
   redeemed_at  text,                        -- shop id, or 'desk'
   redeemed_time timestamptz,
@@ -334,6 +336,7 @@ begin
     return _err('Already used at ' || coalesce(at_name, 'the prize desk') || ' on ' || _when(s.redeemed_time));
   end if;
   if s.use_by < _today() then return _err('This coupon has run out.'); end if;
+  if s.valid_from is not null and s.valid_from > _today() then return _err('This coupon can''t be used yet. It works from ' || _day(s.valid_from) || '.'); end if;
   if sh.area <> s.area then return _err('This coupon is for a different street.'); end if;
   update signups set redeemed = true, redeemed_at = sh.id, redeemed_time = now() where code = s.code;
   return jsonb_build_object('ok', true, 'shop', sh.name, 'value', (s.prize->>'value')::int, 'name', s.name);
@@ -382,6 +385,7 @@ begin
      set prize = jsonb_build_object('id', p.id, 'name', p.name, 'value', p.value),
          spun_at = now(),
          use_by = coalesce(ev.use_by, _today() + 7),
+         valid_from = ev.valid_from,
          awarded_by = _me(),
          -- small prizes are handed over at the desk, so they are used straight away
          redeemed = (p.value = 0),
@@ -401,7 +405,7 @@ begin
   if s.prize is null then return jsonb_build_object('ok', true); end if;           -- already undone
   if s.redeemed and s.redeemed_at is distinct from 'desk' then return _err('Already used. Cannot undo.'); end if;
   update signups
-     set prize = null, spun_at = null, use_by = null, redeemed = false, redeemed_at = null,
+     set prize = null, spun_at = null, use_by = null, valid_from = null, redeemed = false, redeemed_at = null,
          redeemed_time = null, awarded_by = null, notified_at = null
    where code = s.code;
   return jsonb_build_object('ok', true);
@@ -434,6 +438,7 @@ begin
     return jsonb_build_object('state', 'used', 'at', coalesce(at_name, 'the prize desk'), 'when', _when(s.redeemed_time));
   end if;
   if s.use_by < _today() then return jsonb_build_object('state', 'expired', 'use_by', _day(s.use_by)); end if;
+  if s.valid_from is not null and s.valid_from > _today() then return jsonb_build_object('state', 'notyet', 'valid_from', _day(s.valid_from), 'use_by', _day(s.use_by)); end if;
   if s.area <> sh.area then return jsonb_build_object('state', 'otherarea'); end if;
   return jsonb_build_object('state', 'valid', 'code', s.code, 'name', s.name, 'last', s.last_initial,
                             'value', (s.prize->>'value')::int, 'use_by', _day(s.use_by));
@@ -457,6 +462,7 @@ begin
     return _err('Already used at ' || coalesce(at_name, 'the prize desk') || ' on ' || _when(s.redeemed_time));
   end if;
   if s.use_by < _today() then return _err('This coupon ran out on ' || _day(s.use_by)); end if;
+  if s.valid_from is not null and s.valid_from > _today() then return _err('This coupon can''t be used yet. It works from ' || _day(s.valid_from) || '.'); end if;
   if s.area <> sh.area then return _err('This coupon is for a different street.'); end if;
   update signups set redeemed = true, redeemed_at = sh.id, redeemed_time = now() where code = s.code;
   return jsonb_build_object('ok', true, 'value', (s.prize->>'value')::int, 'name', s.name);
@@ -619,6 +625,7 @@ begin
     v := _clean(p_brand->>k, 120);
     if p_brand ? k and v <> '' then b := b || jsonb_build_object(k, v); end if;
   end loop;
+  if p_brand ? 'headline' then b := b || jsonb_build_object('headline', _clean(p_brand->>'headline', 60)); end if;
   foreach k in array array['color','accent'] loop
     v := p_brand->>k;
     if p_brand ? k then
@@ -651,15 +658,19 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
-create function event_save(p_id bigint, p_name text, p_starts date, p_use_by date)
+create function event_save(p_id bigint, p_name text, p_starts date, p_use_by date, p_valid_from date default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 begin
   if not _can_manage((select area from events where id = p_id)) then return _err('Please log in with a staff account.'); end if;
   if _clean(p_name, 80) = '' then return _err('Please add an event name.'); end if;
-  if p_starts is null or p_use_by is null then return _err('Please add both dates.'); end if;
-  if p_use_by < p_starts then return _err('The use-by date has to be after the event.'); end if;
-  update events set name = _clean(p_name, 80), starts_on = p_starts, use_by = p_use_by where id = p_id;
-  update signups set use_by = p_use_by where event = p_id and prize is not null and not redeemed;
+  if p_starts is null or p_use_by is null then return _err('Please add the event date and the last day coupons work.'); end if;
+  if p_use_by < p_starts then return _err('The last day has to be after the event.'); end if;
+  if p_valid_from is not null and (p_valid_from < p_starts or p_valid_from > p_use_by) then
+    return _err('The first day coupons work has to be between the event date and the last day.');
+  end if;
+  update events set name = _clean(p_name, 80), starts_on = p_starts, use_by = p_use_by, valid_from = p_valid_from where id = p_id;
+  -- coupons already given keep up with the change (unless already used)
+  update signups set use_by = p_use_by, valid_from = p_valid_from where event = p_id and prize is not null and not redeemed;
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -710,6 +721,7 @@ returns jsonb language sql stable security definer set search_path = public as $
       'event', ev.name,
       'code', s.code,
       'duplicate_of', s.dup_of,
+      'valid_from', s.valid_from,
       'prize', s.prize->>'name',
       'value', (s.prize->>'value')::int,
       'won', to_char(s.spun_at at time zone 'Australia/Melbourne', 'YYYY-MM-DD HH24:MI'),
@@ -718,6 +730,7 @@ returns jsonb language sql stable security definer set search_path = public as $
           when (s.prize->>'value')::int = 0 then 'Collected at desk'
           when s.redeemed then 'Used'
           when s.use_by < _today() then 'Expired'
+          when s.valid_from > _today() then 'Not valid yet'
           else 'Not used' end,
       'used_at', case when s.redeemed then coalesce(sh.name, 'Prize desk') else null end,
       'used_shop_id', case when s.redeemed then s.redeemed_at else null end,
@@ -802,7 +815,7 @@ begin
       shop_add(text,text,text), shop_update(text,text,text,boolean),
       add_prize(text,text,int,int,text), prize_update(bigint,text,int,int,text,int), remove_prize(bigint),
       set_setting(text,text), area_create(text,text,text,text,text,text,text,text,text),
-      area_save_brand(text,jsonb,text,text,text), area_set_status(text,text), event_save(bigint,text,date,date), message_save(text,text,text),
+      area_save_brand(text,jsonb,text,text,text), area_set_status(text,text), event_save(bigint,text,date,date,date), message_save(text,text,text),
       staff_me(), staff_list(), staff_remove(text), report_rows(text), report_log(text,text)
     to authenticated;
   end if;

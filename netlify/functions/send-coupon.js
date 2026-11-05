@@ -104,7 +104,12 @@ exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netli
   const place = (area.brand && area.brand.place) || area.name;
   const couponPath = '/c/' + s.code + '?k=' + s.token;
   const Messages = makeMessages({ domain: host, esc, money });
+  // The first day the coupon works. Sent on a day before it? Then the message says "you can't use it today".
+  const todayMel = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Melbourne' });
+  const startsLater = !!(s.valid_from && String(s.valid_from).slice(0, 10) > todayMel);
+  const fromIso = s.valid_from ? String(s.valid_from).slice(0, 10) : todayMel;
   const d = {
+    hasStart: startsLater, validFrom: dayName(fromIso), validFromShort: dayName(fromIso).replace(/^\w+\s/, ''),
     name: s.name, value: s.prize.value, code: s.code, useBy: dayName(s.use_by), useByShort: dayName(s.use_by).replace(/^\w+\s/, ''),
     event: (ev && ev.name) || 'the festival', place, area: area.id, origin,
     couponUrl: origin + couponPath, link: host + couponPath, shopsUrl: origin + '/shops', safetyUrl: 'https://' + baseDomain + '/safety',

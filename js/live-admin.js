@@ -3,7 +3,7 @@
   const C = window.CONFIG, D = window.DB, U = window.U, App = window.App, esc = U.esc, money = U.money, d0 = App.d;
   if (!D.live) return;
   const LP = App.livePages, LB = App.live;
-  const TABS = [['overview', 'Overview'], ['signups', 'Sign-ups'], ['shops', 'Shops'], ['prizes', 'Prizes'], ['look', 'Look'], ['messages', 'Messages'], ['people', 'People'], ['pages', 'Site pages']];
+  const TABS = [['details', 'Key details'], ['overview', 'Overview'], ['signups', 'Sign-ups'], ['shops', 'Shops'], ['prizes', 'Prizes'], ['look', 'Look'], ['messages', 'Messages'], ['people', 'People'], ['pages', 'Site pages']];
   const LEVELS = { chaos: 'Chaos Master', fruitbowl: 'Fruitbowl', council: 'Council', street: 'Street Association', desk: 'Prize desk', shop: 'Shop' };
 
   const adminArea = (ctx) => {
@@ -67,7 +67,7 @@
     { label: 'First name', key: 'first_name' }, { label: 'Last name', key: 'last_name' }, { label: 'Email', key: 'email' }, { label: 'Mobile', key: 'mobile' },
     { label: 'Postcode', key: 'postcode' }, { label: 'Contact by', key: 'contact' }, { label: 'News opt-in', get: (r) => (r.optin ? 'Yes' : 'No') },
     { label: 'Signed up (date and time)', key: 'signed_up' }, { label: 'Event', key: 'event' }, { label: 'Coupon code', key: 'code' }, { label: 'Possible duplicate of', key: 'duplicate_of' }, { label: 'Prize', key: 'prize' },
-    { label: 'Value ($)', get: (r) => (r.value == null ? '' : r.value) }, { label: 'Won (date and time)', key: 'won' }, { label: 'Status', key: 'status' },
+    { label: 'Value ($)', get: (r) => (r.value == null ? '' : r.value) }, { label: 'Won (date and time)', key: 'won' }, { label: 'Status', key: 'status' }, { label: 'Coupons work from', key: 'valid_from' },
     { label: 'Used at (shop)', key: 'used_at' }, { label: 'Used (date and time)', key: 'used' }
   ];
   async function loadReport(area) {
@@ -128,12 +128,12 @@
     brand: (ctx) => (d0.area(adminArea(ctx)) ? App.brandOf(adminArea(ctx)) : LB.fb()),
     title: () => 'Admin',
     async after(ctx) {
-      const tab = ctx.q.get('tab') || 'overview', area = adminArea(ctx);
+      const tab = ctx.q.get('tab') || 'details', area = adminArea(ctx);
       if (!D.user || !LB.canManage(area)) return;
       if (['signups', 'overview'].includes(tab) && !ctx.reportAsked) {
         ctx.reportAsked = true;
         await loadReport(area); App.render();
-        const t = setInterval(async () => { if (!document.hidden && App.ctx === ctx) { await loadReport(area); if (['signups', 'overview'].includes(ctx.q.get('tab') || 'overview')) App.render(); } }, 10000);
+        const t = setInterval(async () => { if (!document.hidden && App.ctx === ctx) { await loadReport(area); if (['signups', 'overview'].includes(ctx.q.get('tab') || 'details')) App.render(); } }, 10000);
         ctx.stop = () => clearInterval(t);
       }
       if (tab === 'people' && !ctx.peopleAsked && LB.isHq()) { ctx.peopleAsked = true; App.state.people = (await D.read('staff_list')) || []; App.render(); }
@@ -143,11 +143,12 @@
       if (!D.user || !LB.canManage(area)) return LB.gate('Admin');
       const a = d0.area(area);
       if (!a) return `${LB.band('Admin', b, [])}<main class="wrap" id="main"><div class="panel"><h2>No street set up yet</h2><p>Run the Croydon set-up file in Supabase, or add a street.</p></div></main>${LB.footer()}`;
-      const tab = TABS.some((t) => t[0] === ctx.q.get('tab')) ? ctx.q.get('tab') : 'overview';
+      const tab = TABS.some((t) => t[0] === ctx.q.get('tab')) ? ctx.q.get('tab') : 'details';
       const hq = LB.isHq(), S = App.state;
       const link = (t) => (ctx.area ? `/admin?tab=${t}` : `/admin?area=${encodeURIComponent(area)}&tab=${t}`);
       let body = '';
-      if (tab === 'overview') {
+      if (tab === 'details') body = detailsTab(area);
+      else if (tab === 'overview') {
         const st = stats(area), limit = limitOf(), pct = limit ? Math.min(100, Math.round((st.value / limit) * 100)) : 0;
         const ev = d0.eventsOf(area).slice(-1)[0];
         const pctUsed = st.coupons ? Math.round((st.used / st.coupons) * 100) : 0;
@@ -163,11 +164,7 @@
           <div class="grid two gap">
             <section class="panel"><h3>Sign-ups</h3><p>${a.status === 'live' ? '<span class="tag">Open</span> Customers can sign up now.' : '<span class="tag wait">Closed</span> Customers see "Sign-ups are not open yet".'}</p>
               ${hq ? `<p><button class="btn ${a.status === 'live' ? 'ghost' : 'sun'}" data-act="ladmin-open" data-v="${a.status === 'live' ? 'setting up' : 'live'}">${a.status === 'live' ? 'Close sign-ups' : 'Open sign-ups'}</button></p>` : ''}
-              <h3 style="margin-top:14px">The festival</h3>${ev ? `<form data-form="levent" data-id="${ev.id}" class="row" style="align-items:flex-end">
-                <div style="flex:2;min-width:150px"><label for="ev-name">Event</label><input id="ev-name" name="name" value="${esc(ev.name)}" maxlength="80"></div>
-                <div style="flex:1;min-width:140px"><label for="ev-date">Date</label><input id="ev-date" name="starts" type="date" value="${esc(ev.starts_on)}"></div>
-                <div style="flex:1;min-width:140px"><label for="ev-use">Use coupons by</label><input id="ev-use" name="use_by" type="date" value="${esc(ev.use_by)}"></div>
-                <button class="btn" type="submit">Save</button></form>` : '<p class="muted">No event yet.</p>'}</section>
+              <h3 style="margin-top:14px">The festival</h3>${ev ? `<p><b>${esc(ev.name)}</b>, ${esc(U.date(ev.starts_on))}.<br>${esc(LB.windowText(ev) || '')}</p><p><a href="${link('details')}">Change the dates and wording in Key details</a></p>` : '<p class="muted">No event yet.</p>'}</section>
             <section class="panel"><h3>The wheel</h3>${wheelTable(area, false)}</section></div>
           <div class="grid two gap">${qrCard('Sign-up page (marquee poster)', App.areaOrigin(area), area + '-signup-qr')}${qrCard('Shop set-up (shop one-pager)', App.areaOrigin(area) + '/shop/claim', area + '-shop-qr')}</div>
           <p style="margin-top:14px"><button class="btn" data-act="ladmin-csv">Download spreadsheet</button></p>`;
@@ -221,7 +218,7 @@
     const body = document.getElementById('su-body');
     if (rows && body) body.innerHTML = suRows(rows.filter((r) => !q || [r.first_name, r.last_name, r.email, r.mobile, r.code, r.prize, r.status, r.used_at].join(' ').toLowerCase().includes(q)));
   };
-  App.changes['ladmin-area'] = (el) => { App.state.report = null; App.state.brandDraft = null; App.go('/admin?area=' + encodeURIComponent(el.value) + '&tab=' + (App.ctx.q.get('tab') || 'overview')); };
+  App.changes['ladmin-area'] = (el) => { App.state.report = null; App.state.brandDraft = null; App.go('/admin?area=' + encodeURIComponent(el.value) + '&tab=' + (App.ctx.q.get('tab') || 'details')); };
 
   App.acts['ladmin-csv'] = async () => {
     const area = adminArea(App.ctx);
@@ -232,11 +229,6 @@
     U.toast('Spreadsheet downloaded.');
   };
   App.acts['ladmin-open'] = (b) => LB.save('area_set_status', { p_id: adminArea(App.ctx), p_status: b.dataset.v }).then((r) => { if (r.ok) U.toast(b.dataset.v === 'live' ? 'Sign-ups are open.' : 'Sign-ups are closed.'); else U.toast(r.error, true); });
-  App.forms.levent = async (f) => {
-    const d = Object.fromEntries(new FormData(f));
-    const r = await LB.save('event_save', { p_id: Number(f.dataset.id), p_name: d.name, p_starts: d.starts, p_use_by: d.use_by });
-    U.toast(r.ok ? 'Saved.' : r.error, !r.ok);
-  };
 
   // ---------- prizes ----------
   function wheelTable(area, edit) {
@@ -292,7 +284,7 @@
         <td><input form="sf-${esc(s.id)}" name="name" value="${esc(s.name)}" maxlength="60" style="min-width:170px" aria-label="Shop name"></td>
         <td><input form="sf-${esc(s.id)}" name="type" value="${esc(s.type)}" maxlength="30" style="min-width:110px" aria-label="Type"></td>
         <td><span class="tag ${s.claimed ? '' : 'wait'}">${s.claimed ? 'Set up' : 'Not yet'}</span></td>
-        <td><label class="check" style="margin:0"><input form="sf-${esc(s.id)}" type="checkbox" name="show" ${s.hidden ? '' : 'checked'}> Show</label></td>
+        <td><label class="check" style="margin:0"><input id="sh-show-${esc(s.id)}" form="sf-${esc(s.id)}" type="checkbox" name="show" ${s.hidden ? '' : 'checked'}> Show</label></td>
         <td><button class="btn small" form="sf-${esc(s.id)}" type="submit">Save</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">No shops yet.</td></tr>'}</tbody></table></div>
       <form data-form="laddshop" class="row" style="margin-top:12px;align-items:flex-end">
         <div style="flex:2;min-width:170px"><label for="ns-name">Add a shop</label><input id="ns-name" name="name" required placeholder="Croydon Florist"></div>
@@ -311,20 +303,61 @@
   };
 
 
+
+  // ---------- Key details: the front page. Change it here and it changes everywhere. ----------
+  function detailsTab(area) {
+    const a = d0.area(area), b = App.brandOf(area), ev = d0.eventsOf(area).slice(-1)[0];
+    if (!ev) return '<div class="panel"><h3>Key details</h3><p>This street has no festival yet.</p></div>';
+    const win = LB.windowText(ev);
+    return `<form data-form="ldetails" data-id="${ev.id}">
+      <div class="grid two">
+        <section class="panel"><h3>The festival</h3>
+          <label for="kd-name">Festival name</label><input id="kd-name" name="name" value="${esc(ev.name)}" maxlength="80">
+          <label for="kd-date">Festival date</label><input id="kd-date" name="starts" type="date" value="${esc(ev.starts_on)}">
+          <h3 style="margin-top:18px">When coupons work</h3>
+          <label for="kd-from">Coupons work from <span class="muted">(optional)</span></label><input id="kd-from" name="valid_from" type="date" value="${esc(ev.valid_from || '')}">
+          <p class="muted small" style="margin:4px 0 0">Leave it empty and coupons work straight away. With a date, shops are told not to accept them before it, and customers are told they can't use it today.</p>
+          <label for="kd-until">Coupons work until</label><input id="kd-until" name="use_by" type="date" value="${esc(ev.use_by)}">
+          <p class="muted small" style="margin:4px 0 0">The last day a coupon can be used.</p>
+        </section>
+        <section class="panel"><h3>Words on the customer pages</h3>
+          <label for="kd-head">Headline</label><input id="kd-head" name="headline" value="${esc(b.headline || '')}" maxlength="60" placeholder="CROYDON IS OPEN FOR BUSINESS">
+          <p class="muted small" style="margin:4px 0 0">The big words at the top of the sign-up, coupon and shops pages and the email. Empty hides them.</p>
+          <label for="kd-welcome">Sign-up page welcome line</label><input id="kd-welcome" name="welcome" value="${esc(b.welcome || '')}" maxlength="120">
+          <h3 style="margin-top:18px">Right now customers read</h3>
+          <p class="friendly" style="margin:6px 0"><b>${esc(win || 'No dates set yet.')}</b></p>
+          <p class="muted small" style="margin:0">Colours, street name and the logo are in the <a href="${aLink('look')}">Look</a> tab. The wording of the text and email is in <a href="${aLink('messages')}">Messages</a>.</p>
+        </section>
+      </div>
+      <div class="panel"><div class="row" style="justify-content:space-between"><div><b>Where this shows</b>
+        <ul class="list small" style="margin:6px 0 0"><li>The sign-up page, the coupon page and the shops page</li><li>The coupon email and the text message</li><li>The shop's coupon checker, and the phone redemption</li><li>The spreadsheet, and the Overview</li></ul></div>
+        <button class="btn" type="submit">Save key details</button></div></div></form>`;
+  }
+  const aLink = (t) => (App.ctx && App.ctx.area ? `/admin?tab=${t}` : `/admin?area=${encodeURIComponent(adminArea(App.ctx))}&tab=${t}`);
+  App.forms.ldetails = async (f) => {
+    const d = Object.fromEntries(new FormData(f)), area = adminArea(App.ctx);
+    const r = await LB.save('event_save', { p_id: Number(f.dataset.id), p_name: d.name, p_starts: d.starts, p_use_by: d.use_by, p_valid_from: d.valid_from || null });
+    if (!r.ok) return U.toast(r.error, true);
+    const r2 = await LB.save('area_save_brand', { p_id: area, p_brand: { headline: d.headline || '', welcome: d.welcome || '' }, p_email_name: null, p_email_address: null, p_reply_to: null });
+    U.toast(r2.ok ? 'Saved. Every page, email and text now uses these.' : r2.error, !r2.ok);
+  };
+
   // ---------- Messages: the wording of the text and the email ----------
-  const PH = [['{name}', 'First name'], ['{value}', 'Coupon amount'], ['{code}', 'Coupon code'], ['{useBy}', 'Use-by date'], ['{useByShort}', 'Short date'], ['{place}', 'Street name'], ['{event}', 'Event name'], ['{link}', 'Coupon link'], ['{shops}', 'Shops link']];
+  const PH = [['{name}', 'First name'], ['{value}', 'Coupon amount'], ['{code}', 'Coupon code'], ['{validFrom}', 'First day it works'], ['{validFromShort}', 'First day, short'], ['{useBy}', 'Last day it works'], ['{useByShort}', 'Last day, short'], ['{place}', 'Street name'], ['{event}', 'Event name'], ['{link}', 'Coupon link'], ['{shops}', 'Shops link']];
   const msgKey = (area, k) => 'msg:' + area + ':' + k;
   const msgNow = (area, k) => D.state.settings[msgKey(area, k)] || '';
+  const startsLater = (area) => { const ev = d0.eventsOf(area).slice(-1)[0]; return !!(ev && ev.valid_from && ev.valid_from > U.today()); };
   function sampleFor(area) {
     const a = d0.area(area) || {}, b = App.brandOf(area), ev = d0.eventsOf(area).slice(-1)[0] || {}, host = area + '.' + C.baseDomain;
     const useBy = ev.use_by ? U.date(ev.use_by) : 'Mon 30 Nov';
-    return { name: 'Sam', value: 5, code: 'CMS-1234', useBy, useByShort: String(useBy).replace(/^\w+\s/, ''), event: ev.name || 'the festival', place: b.place || a.name, area,
+    const vf = ev.valid_from ? U.date(ev.valid_from) : U.date(U.today());
+    return { hasStart: startsLater(area), validFrom: vf, validFromShort: String(vf).replace(/^\w+\s/, ''), name: 'Sam', value: 5, code: 'CMS-1234', useBy, useByShort: String(useBy).replace(/^\w+\s/, ''), event: ev.name || 'the festival', place: b.place || a.name, area,
       origin: 'https://' + host, couponUrl: 'https://' + host + '/c/CMS-1234?k=0123456789abcdef0123', link: host + '/c/CMS-1234?k=0123456789abcdef0123', shopsUrl: 'https://' + host + '/shops',
       safetyUrl: 'https://' + C.baseDomain + '/safety', unsubUrl: '#', fromName: a.email_name || b.place, fromAddress: a.email_address || 'hello@' + C.baseDomain,
       color: b.color, accent: b.accent, headline: b.headline, palette: b.palette };
   }
   function previewSms(area, text) {
-    const standard = String(text).replace(/\r/g, '').trim() === window.Messages.DEFAULTS.sms;      // the standard wording shortens itself to fit one text
+    const standard = String(text).replace(/\r/g, '').trim() === window.Messages.defaults(startsLater(area)).sms;      // the standard wording shortens itself to fit one text
     const r = window.Messages.sms(Object.assign(sampleFor(area), standard ? {} : { custom: { sms: text } }));
     const n = r.length, parts = n <= 160 ? 1 : Math.ceil(n / 153);
     return { html: `<div class="smsbubble">${esc(r.text)}</div>`, n, parts, r };
@@ -334,14 +367,15 @@
     return `<p class="muted small" style="margin:0 0 6px"><b>Subject:</b> ${esc(r.subject)}</p><iframe class="emailprev" title="Email preview" sandbox srcdoc="${esc('<body style="margin:0;padding:14px;background:#fff">' + r.html + '</body>')}"></iframe>`;
   }
   const chips = (target) => `<div class="chips" aria-label="Words you can add">${PH.map(([ph, label]) => `<button type="button" class="chip" data-act="lmsg-insert" data-target="${target}" data-ph="${esc(ph)}" title="${esc(label)}">${esc(ph)}</button>`).join('')}</div>`;
-  const warnFor = (text, needLink) => {
+  const warnFor = (text, needLink, needStart) => {
     const bad = window.Messages.unknownIn(text), out = [];
+    if (needStart && !/\{validFrom(Short)?\}/.test(text)) out.push('Coupons start on a later day, but this wording does not say so. Add {validFrom} so customers know they cannot use it today.');
     if (bad.length) out.push('Not a word we know: ' + bad.join(', ') + '. It will show as typed.');
     if (needLink && !/\{link\}/.test(text)) out.push('There is no {link}, so customers will not get their coupon link.');
     return out.map((w) => `<p class="warnline">${esc(w)}</p>`).join('');
   };
   function messagesTab(area) {
-    const M = window.Messages, D0 = M.DEFAULTS;
+    const M = window.Messages, D0 = M.defaults(startsLater(area));
     const sms = msgNow(area, 'sms') || D0.sms, sub = msgNow(area, 'email_subject') || D0.email_subject, body = msgNow(area, 'email_body') || D0.email_body;
     const ps = previewSms(area, sms);
     return `<div class="panel"><h3>What customers receive</h3>
@@ -352,7 +386,7 @@
             <label for="msg-sms">Text</label><textarea id="msg-sms" name="text" rows="6" maxlength="600" data-input="lmsg-preview">${esc(sms)}</textarea>
             ${chips('msg-sms')}
             <div id="sms-meta" class="muted small" style="margin:8px 0">${ps.n} characters. ${ps.parts === 1 ? 'Sends as 1 text.' : 'Sends as ' + ps.parts + ' texts, and costs more.'} One text is up to 160 characters.</div>
-            <div id="sms-warn">${warnFor(sms, true)}</div>
+            <div id="sms-warn">${warnFor(sms, true, startsLater(area) && sms !== D0.sms)}</div>
             <div class="row"><button class="btn" type="submit">Save text</button><button type="button" class="btn ghost" data-act="lmsg-reset" data-kind="sms">Back to standard wording</button></div>
           </form>
           <h4 style="margin:16px 0 6px">What it looks like</h4><div id="sms-prev">${ps.html}</div>
@@ -363,7 +397,7 @@
             <label for="msg-body">Message</label><textarea id="msg-body" name="body" rows="14" maxlength="3000" data-input="lmsg-preview">${esc(body)}</textarea>
             ${chips('msg-body')}
             <p class="muted small" style="margin:8px 0">Leave a blank line between paragraphs. Put <code>**two stars**</code> around words to make them bold. A line with just <code>[buttons]</code> shows the two buttons there.</p>
-            <div id="email-warn">${warnFor(sub + '\n' + body, false)}</div>
+            <div id="email-warn">${warnFor(sub + '\n' + body, false, startsLater(area) && body !== D0.email_body)}</div>
             <div class="row"><button class="btn" type="submit">Save email</button><button type="button" class="btn ghost" data-act="lmsg-reset" data-kind="email">Back to standard wording</button></div>
           </form>
           <h4 style="margin:16px 0 6px">What it looks like</h4><div id="email-prev">${previewEmail(area, sub, body)}</div>
@@ -377,11 +411,11 @@
       const p = previewSms(area, el.value);
       q('sms-prev').innerHTML = p.html;
       q('sms-meta').textContent = p.n + ' characters. ' + (p.parts === 1 ? 'Sends as 1 text.' : 'Sends as ' + p.parts + ' texts, and costs more.') + ' One text is up to 160 characters.';
-      q('sms-warn').innerHTML = warnFor(el.value, true);
+      q('sms-warn').innerHTML = warnFor(el.value, true, startsLater(area) && el.value.trim() !== window.Messages.defaults(true).sms);
     } else {
       const sub = q('msg-sub').value, body = q('msg-body').value;
       q('email-prev').innerHTML = previewEmail(area, sub, body);
-      q('email-warn').innerHTML = warnFor(sub + '\n' + body, false);
+      q('email-warn').innerHTML = warnFor(sub + '\n' + body, false, startsLater(area) && body.trim() !== window.Messages.defaults(true).email_body);
     }
   };
   App.acts['lmsg-insert'] = (b) => {
@@ -392,13 +426,14 @@
     App.changes['lmsg-preview'](t);
   };
   App.acts['lmsg-reset'] = (b) => {
-    const D0 = window.Messages.DEFAULTS, q = (id) => document.getElementById(id);
+    const D0 = window.Messages.defaults(startsLater(adminArea(App.ctx))), q = (id) => document.getElementById(id);
     if (b.dataset.kind === 'sms') { q('msg-sms').value = D0.sms; App.changes['lmsg-preview'](q('msg-sms')); }
     else { q('msg-sub').value = D0.email_subject; q('msg-body').value = D0.email_body; App.changes['lmsg-preview'](q('msg-body')); }
     U.toast('Standard wording is back. Press Save to keep it.');
   };
+  const area0 = () => adminArea(App.ctx);
   App.forms.lmsg = async (f) => {
-    const area = adminArea(App.ctx), D0 = window.Messages.DEFAULTS, d = Object.fromEntries(new FormData(f));
+    const area = adminArea(App.ctx), D0 = window.Messages.defaults(startsLater(area0())), d = Object.fromEntries(new FormData(f));
     const pairs = f.dataset.kind === 'sms' ? [['sms', d.text, D0.sms]] : [['email_subject', d.subject, D0.email_subject], ['email_body', d.body, D0.email_body]];
     for (const [kind, text, dflt] of pairs) {
       const same = String(text).replace(/\r/g, '').trim() === dflt;

@@ -9,23 +9,29 @@
 
   // d: {name, value, code, useBy ("Sat 14 Nov"), useByShort ("14 Nov"), event, place, area, fromName, fromAddress, replyTo, unsubUrl, origin}
   // ---- The wording. Staff can change it in Admin > Messages. Words in {curly brackets} are filled in per customer. ----
-  const DEFAULTS = {
-    sms: 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use by {useByShort}. {link} Reply STOP to opt out',
+  // The standard wording. When coupons start on a later day (hasStart), it says so, and says you can't use it today.
+  const defaults = (hasStart) => ({
+    sms: hasStart
+      ? 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use it {validFromShort} to {useByShort}, not before. {link} Reply STOP to opt out'
+      : 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use by {useByShort}. {link} Reply STOP to opt out',
     email_subject: "Thanks for spinning the wheel! Here's your coupon code",
     email_body: [
       'Hi {name},',
       'Thanks for spinning the wheel at {event} today!',
       '**You won a {value} coupon.**\n**Your coupon code: {code}**',
-      'Spend it at any participating shop on {place} by {useBy}. Just show this email or your code at the counter.',
+      hasStart
+        ? "**You can't use it today.** It works from **{validFrom}** until **{useBy}**, at any participating shop on {place}. Just show this email or your code at the counter."
+        : 'Spend it at any participating shop on {place} by {useBy}. Just show this email or your code at the counter.',
       '[buttons]',
       "We're so excited to bring life back to {place}. Stay tuned: we'll keep you posted as the next part launches.",
       'See you on Main Street!'
     ].join('\n\n')
-  };
-  const FIELDS = ['name', 'value', 'code', 'useBy', 'useByShort', 'place', 'event', 'link', 'shops'];
+  });
+  const DEFAULTS = defaults(false);
+  const FIELDS = ['name', 'value', 'code', 'useBy', 'useByShort', 'validFrom', 'validFromShort', 'place', 'event', 'link', 'shops'];
   // d -> the values that go into the {brackets}
   const valuesOf = (d, forEmail) => ({
-    name: d.name, value: money(d.value), code: d.code, useBy: d.useBy, useByShort: d.useByShort, place: d.place, event: d.event,
+    name: d.name, value: money(d.value), code: d.code, useBy: d.useBy, useByShort: d.useByShort, validFrom: d.validFrom || '', validFromShort: d.validFromShort || '', place: d.place, event: d.event,
     link: forEmail ? (d.couponUrl || d.link || '') : (d.link || ''), shops: d.shopsUrl || ''
   });
   const fill = (t, vars, enc) => String(t).replace(/\{(\w+)\}/g, (m, k) => (Object.prototype.hasOwnProperty.call(vars, k) ? enc(vars[k] == null ? '' : vars[k]) : m));
@@ -47,7 +53,7 @@
     const shops = d.shopsUrl || url + '/' + d.area + '/shops';
     const main = hexOr(d.color, '#23003F'), accent = hexOr(d.accent, '#FFFDB4');
     const c = d.custom || {};
-    const subject = fill((c.email_subject && String(c.email_subject).trim()) || DEFAULTS.email_subject, valuesOf(d, true), (x) => String(x).replace(/[\r\n]+/g, ' '));
+    const subject = fill((c.email_subject && String(c.email_subject).trim()) || defaults(!!d.hasStart).email_subject, valuesOf(d, true), (x) => String(x).replace(/[\r\n]+/g, ' '));
     const pal = (Array.isArray(d.palette) ? d.palette : []).filter((x) => /^#[0-9a-f]{6}$/i.test(x));
     const banner = d.headline && pal.length >= 3
       ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td style="background:${pal[0]};color:${inkOn(pal[0])};padding:20px 16px;font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:26px;line-height:1.05;text-transform:uppercase">${esc(d.headline)}</td></tr><tr><td style="padding:0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${pal.slice(1).map((x) => `<td height="14" style="background:${x};font-size:0;line-height:0">&nbsp;</td>`).join('')}</tr></table></td></tr></table>`
@@ -56,7 +62,7 @@
         ${d.couponUrl ? `<p style="font-size:13px;color:#5E5180">If a button doesn't open, copy this link into your browser:<br>${esc(d.couponUrl)}</p>` : ''}`;
     // The body: blank lines make paragraphs, **double stars** make bold, and a line with just [buttons] is where the buttons go.
     const vars = valuesOf(d, true);
-    const text = ((c.email_body && String(c.email_body).trim()) || DEFAULTS.email_body).replace(/\r/g, '');
+    const text = ((c.email_body && String(c.email_body).trim()) || defaults(!!d.hasStart).email_body).replace(/\r/g, '');
     const paras = text.split(/\n{2,}/).map((para) => {
       if (para.trim() === '[buttons]') return buttons;
       const safe = fill(esc(para.trim()), Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, esc(v)])), (x) => x);
@@ -79,8 +85,13 @@
     }
     const link = d.link || (domain + '/' + d.area + '/shops');
     const v = money(d.value);
-    const tries = [
-      fill(DEFAULTS.sms, Object.assign(valuesOf(d, false), { link }), (x) => String(x)),
+    const vars = Object.assign(valuesOf(d, false), { link });
+    const tries = d.hasStart ? [
+      fill(defaults(true).sms, vars, (x) => String(x)),
+      `You won a ${v} coupon! Code ${d.code}. Use it ${d.validFromShort} to ${d.useByShort} (not before). ${link} Reply STOP to opt out`,
+      `${v} coupon, code ${d.code}. Use ${d.validFromShort} to ${d.useByShort}, not before. ${link} STOP to opt out`
+    ] : [
+      fill(DEFAULTS.sms, vars, (x) => String(x)),
       `You won a ${v} coupon for any ${d.place} shop. Code ${d.code}. Use by ${d.useByShort}. ${link} Reply STOP to opt out`,
       `You won a ${v} coupon! Code ${d.code}. Use by ${d.useByShort} at any ${d.place} shop: ${link} Reply STOP to opt out`,
       `You won a ${v} coupon! Code ${d.code}. Use by ${d.useByShort}. ${link} Reply STOP to opt out`
@@ -89,5 +100,5 @@
     return { text, length: text.length };
   }
 
-  return { email, sms, DEFAULTS, FIELDS, unknownIn };
+  return { email, sms, DEFAULTS, defaults, FIELDS, unknownIn };
 });

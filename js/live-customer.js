@@ -5,6 +5,8 @@
   const LP = App.livePages, LB = App.live;
 
   const areaOf = (ctx) => ctx.area || C.demoHomeArea;
+  // "Coupons work from Tue 10 Nov until Mon 30 Nov." (read from the event's key details)
+  LB.windowText = (ev) => (!ev || !ev.use_by ? '' : ev.valid_from && ev.valid_from > U.today() ? `Coupons work from ${U.date(ev.valid_from)} until ${U.date(ev.use_by)}.` : `Coupons work until ${U.date(ev.use_by)}.`);
   LB.councilName = (a) => (a && a.council_area ? a.council_area + ' City Council' : 'Council');
   const brandFor = (ctx) => (d0.area(areaOf(ctx)) ? App.brandOf(areaOf(ctx)) : LB.fb());
   const THANKS = `<div class="ticket thanks"><b>Thanks for joining us!</b><br><span class="muted">We're so excited to bring you back to your Main Street.</span></div>`;
@@ -24,7 +26,7 @@
       const closed = a.status !== 'live';
       return App.custPage(b, `${again}
         <h2>${esc(b.welcome)}</h2>
-        <p class="muted" style="margin:0">One sign-up per email and mobile number.</p>
+        <p class="muted" style="margin:0">One sign-up per email and mobile number.${LB.windowText(d0.eventsOf(a.id).slice(-1)[0]) ? ' ' + esc(LB.windowText(d0.eventsOf(a.id).slice(-1)[0])) : ''}</p>
         ${closed ? '<div class="statecard bad"><h3>Sign-ups are not open yet</h3><p style="margin:0">Please come back soon.</p></div>' : ''}
         <form data-form="lsignup" data-area="${esc(a.id)}" novalidate>
           <label for="f-name">First name</label><input id="f-name" name="name" required autocomplete="given-name" maxlength="40">
@@ -33,10 +35,10 @@
           <label for="f-email">Email</label><input id="f-email" name="email" type="email" required autocomplete="email" maxlength="120">
           <label for="f-mob">Mobile</label><input id="f-mob" name="mobile" inputmode="tel" required autocomplete="tel" placeholder="04xx xxx xxx" maxlength="14">
           <fieldset style="border:0;padding:0;margin:14px 0 0"><legend style="font-weight:700;font-size:15px">Send my coupon by:</legend>
-            <div class="row" style="flex-wrap:nowrap"><label class="check" style="margin:4px 14px 0 0"><input type="radio" name="contact" value="email" checked> Email</label>
-            <label class="check" style="margin:4px 0 0"><input type="radio" name="contact" value="text"> Text message</label></div></fieldset>
-          <label class="check" style="margin-top:14px"><input type="checkbox" name="optin"> <span>I agree to receive news and updates from ${esc(LB.councilName(a))}, the ${esc(b.place)} Traders Association, or related parties (optional). We never sell your details.</span></label>
-          <label class="check"><input type="checkbox" name="terms"> <span>I agree to the terms and the <a href="${App.mainOrigin()}/safety" target="_blank" rel="noopener">safety and privacy page</a>. If you're under 18, a parent or guardian must tick this for you.</span></label>
+            <div class="row" style="flex-wrap:nowrap"><label class="check" style="margin:4px 14px 0 0"><input type="radio" id="f-c-email" name="contact" value="email" checked> Email</label>
+            <label class="check" style="margin:4px 0 0"><input type="radio" id="f-c-text" name="contact" value="text"> Text message</label></div></fieldset>
+          <label class="check" style="margin-top:14px"><input type="checkbox" id="f-optin" name="optin"> <span>I agree to receive news and updates from ${esc(LB.councilName(a))}, the ${esc(b.place)} Traders Association, or related parties (optional). We never sell your details.</span></label>
+          <label class="check"><input type="checkbox" id="f-terms" name="terms"> <span>I agree to the terms and the <a href="${App.mainOrigin()}/safety" target="_blank" rel="noopener">safety and privacy page</a>. If you're under 18, a parent or guardian must tick this for you.</span></label>
           <p class="err" id="su-err" role="alert" hidden></p>
           <p style="margin-top:14px"><button class="btn sun big" type="submit" ${closed ? 'disabled' : ''}>Sign up</button></p>
         </form>`);
@@ -104,17 +106,18 @@
     if (s.use_by && s.use_by < U.today()) {
       return `<div class="statecard bad"><h3>This coupon has run out</h3><p style="margin:0">It ran out on ${esc(U.date(s.use_by))}.</p></div>`;
     }
+    const notYet = !!(s.valid_from && s.valid_from > U.today());
     return `<div class="win" role="status"><b style="font-size:24px;line-height:1.15;display:block">You won a ${money(p.value)} coupon!</b>
-        <p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>
+        ${notYet ? `<p><b>You can't use it yet.</b> It works from <b>${esc(U.date(s.valid_from))}</b> until <b>${esc(U.date(s.use_by))}</b>, at any shop on <b>${esc(b.place)}</b>.</p>` : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`}
         <p style="font-size:18px;margin-top:10px">Your coupon code:</p><div class="bigcode">${esc(s.code)}</div>
-        <p>Use it by <b>${esc(U.date(s.use_by))}</b></p>
+        ${notYet ? '' : `<p>Use it by <b>${esc(U.date(s.use_by))}</b></p>`}
         <p style="margin-top:12px"><a class="btn" href="/shops">See the shops</a></p>
         <p style="font-size:14px">We've ${via} it to you.</p></div>
       <p class="muted" style="font-size:13px;margin:0">One coupon per bill. Used in full: no change or cash back.</p>
       ${FRIENDLY('coupon')}
       ${THANKS}
       ${codeBlock(s.code)}
-      ${phoneUse(s, ctx)}`;
+      ${notYet ? '' : phoneUse(s, ctx)}`;
   }
 
   // A sign-up that is saved on this phone but not sent yet (no signal): show their number now.
@@ -187,7 +190,9 @@
     title: () => 'Shops',
     render(ctx, b) {
       const a = areaOf(ctx), mine = ls.get('msr-code');
+      const win = LB.windowText(d0.eventsOf(a).slice(-1)[0]);
       return App.custPage(b, `<h2>Spend your coupon at any shop on ${esc(b.place)}</h2>
+        ${win ? `<p class="muted" style="margin:0">${esc(win)}</p>` : ''}
         <label for="shop-q" class="sr">Search shops</label><input id="shop-q" type="search" placeholder="Search shops" data-input="shop-search" autocomplete="off">
         <div id="shoplist" class="grid" style="gap:10px">${shopRows(a, App.state.shopQ)}</div>
         <p class="muted" style="margin:0"><b>Shop not listed?</b> Every shop on ${esc(b.place)} takes coupons.</p>

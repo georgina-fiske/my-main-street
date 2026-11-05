@@ -53,10 +53,10 @@
             <div><label for="ss-email">Email</label><input id="ss-email" name="email" type="email" maxlength="120"></div>
             <div><label for="ss-mob">Mobile</label><input id="ss-mob" name="mobile" inputmode="tel" placeholder="04xx xxx xxx" maxlength="14"></div></div>
           <fieldset style="border:0;padding:0;margin:10px 0 0"><legend style="font-weight:700;font-size:15px">Send their coupon by:</legend>
-            <div class="row" style="flex-wrap:nowrap"><label class="check" style="margin:4px 14px 0 0"><input type="radio" name="contact" value="email" checked> Email</label>
-            <label class="check" style="margin:4px 0 0"><input type="radio" name="contact" value="text"> Text message</label></div></fieldset>
-          <label class="check"><input type="checkbox" name="optin"> <span>They agree to receive news and updates from ${esc(LB.councilName(d0.area(area)))}, the ${esc(App.brandOf(area).place)} Traders Association, or related parties (optional)</span></label>
-          <label class="check"><input type="checkbox" name="terms"> They agree to the terms and the safety and privacy page (a parent or guardian, if under 18)</label>
+            <div class="row" style="flex-wrap:nowrap"><label class="check" style="margin:4px 14px 0 0"><input type="radio" id="ss-c-email" name="contact" value="email" checked> Email</label>
+            <label class="check" style="margin:4px 0 0"><input type="radio" id="ss-c-text" name="contact" value="text"> Text message</label></div></fieldset>
+          <label class="check"><input type="checkbox" id="ss-optin" name="optin"> <span>They agree to receive news and updates from ${esc(LB.councilName(d0.area(area)))}, the ${esc(App.brandOf(area).place)} Traders Association, or related parties (optional)</span></label>
+          <label class="check"><input type="checkbox" id="ss-terms" name="terms"> They agree to the terms and the safety and privacy page (a parent or guardian, if under 18)</label>
           <p class="err" id="ss-err" role="alert" hidden></p>
           <p style="margin-top:12px"><button class="btn" type="submit">Fill out the form</button></p></form>`;
       const staffDone = staffRes ? `<div class="result" role="status"><p style="margin:0">Signed up: <b>${esc(staffRes.name)}</b></p>
