@@ -557,6 +557,23 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- The wording of the text and email, per street. Words in {curly brackets} are filled in per customer.
+-- Empty text puts the standard wording back. Anyone who manages the street can change it.
+create function message_save(p_area text, p_kind text, p_text text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare k text; lim int; t text := replace(coalesce(p_text, ''), E'\r', '');
+begin
+  if not _can_manage(p_area) then return _err('Please log in with a staff account.'); end if;
+  if p_kind not in ('sms', 'email_subject', 'email_body') then return _err('Which message?'); end if;
+  if not exists (select 1 from areas where id = p_area) then return _err('We can''t find that street.'); end if;
+  lim := case p_kind when 'sms' then 600 when 'email_subject' then 150 else 3000 end;
+  if length(t) > lim then return _err('That is too long.'); end if;
+  k := 'msg:' || p_area || ':' || p_kind;
+  if btrim(t) = '' then delete from settings where key = k;
+  else insert into settings values (k, t) on conflict (key) do update set value = excluded.value; end if;
+  return jsonb_build_object('ok', true);
+end $$;
+
 -- ---------- areas: look, event, status ----------
 
 create function _slug(t text) returns text
@@ -785,7 +802,7 @@ begin
       shop_add(text,text,text), shop_update(text,text,text,boolean),
       add_prize(text,text,int,int,text), prize_update(bigint,text,int,int,text,int), remove_prize(bigint),
       set_setting(text,text), area_create(text,text,text,text,text,text,text,text,text),
-      area_save_brand(text,jsonb,text,text,text), area_set_status(text,text), event_save(bigint,text,date,date),
+      area_save_brand(text,jsonb,text,text,text), area_set_status(text,text), event_save(bigint,text,date,date), message_save(text,text,text),
       staff_me(), staff_list(), staff_remove(text), report_rows(text), report_log(text,text)
     to authenticated;
   end if;

@@ -73,11 +73,12 @@
       <div class="pass-num" style="font-size:64px">${esc(String(code).replace(/^CMS-/, ''))}</div><div class="pass-code">${esc(code)}</div></div>`;
 
   function phoneUse(s, ctx) {
-    const ph = ctx.ph || {}, shops = d0.shops().filter((x) => x.area === s.area).slice().sort((a, b) => a.name.localeCompare(b.name));
+    const ph = ctx.ph || {}, shops = d0.shops().filter((x) => x.area === s.area && x.claimed).slice().sort((a, b) => a.name.localeCompare(b.name));
     if (ph.done) return `<div class="statecard good" role="status"><h3><span class="dotg g"></span>Done! Take ${money(ph.done.value)} off their bill.</h3><p style="margin:0" class="muted">Used at ${esc(ph.done.shop)}.</p></div>`;
     if (!ph.step) return `<p style="margin:12px 0 0"><button class="btn ghost" style="width:100%" data-act="lphone-open">Shop: use this coupon</button></p>`;
     if (ph.step === 1) {
       return `<div class="panel" style="margin-top:12px"><h3>Which shop are you?</h3>
+        ${shops.length ? '' : '<p class="muted" style="margin:0 0 8px">No shop has set up its account yet. Please ask the staff at the shop to set up, or spend your coupon at a shop that has.</p>'}
         <form data-form="lphone1"><label for="ph-shop" class="sr">Shop</label><select id="ph-shop" name="shop" required><option value="">Choose your shop…</option>${shops.map((x) => `<option value="${esc(x.id)}" ${ph.shop === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
         <div class="row" style="margin-top:10px"><button class="btn" type="submit">Next</button><button class="btn ghost" type="button" data-act="lphone-cancel">Cancel</button></div></form></div>`;
     }
