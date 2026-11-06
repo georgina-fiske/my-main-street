@@ -237,36 +237,56 @@
     return `<div class="table-wrap"><table><thead><tr><th>Prize</th><th>Value</th><th>Won</th><th>Cap</th><th>Left</th></tr></thead><tbody>
       ${ps.map((p) => `<tr><td><span class="dot-pill" style="background:${esc(p.color)}"></span>${esc(p.name)}</td><td>${p.value ? money(p.value) : 'Small prize'}</td><td>${d0.given(p)}</td><td>${p.stock}</td><td>${d0.left(p)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No prizes yet.</td></tr>'}</tbody></table></div>`;
   }
+  // What a customer's text will do with this prize's message (a text holds about 160 characters).
+  function noteHint(area, p, note) {
+    const n = String(note || '').trim();
+    if (!n) return 'Nothing extra is added for this prize.';
+    if (Number(p.value) === 0) return `${n.length}/300. A small prize is handed over at the desk, so the message shows on the customer's phone and on the desk screen.`;
+    const r = window.Messages.sms(Object.assign(sampleFor(area), { prizeName: p.name, prizeNote: n, value: p.value }));
+    return `${n.length}/300. It shows on the customer's coupon page and in the email. ` + (r.noteDropped ? 'It is too long for the text message, even as two texts, so the text leaves it out.' : r.parts > 1 ? 'In the text it makes the message 2 texts joined together, which costs a little more to send.' : 'It also fits in the text message (one text).');
+  }
+  App.changes['lprize-hint'] = (el) => {
+    const area = adminArea(App.ctx), p = d0.prizesOf(area).find((x) => String(x.id) === el.dataset.pid), h = document.getElementById('pz-' + el.dataset.pid + '-hint');
+    if (p && h) h.textContent = noteHint(area, p, el.value);
+  };
   function prizesTab(area, hq) {
     const ps = d0.prizesOf(area), limit = limitOf();
     const capTotal = ps.filter((p) => p.value > 0).reduce((a, p) => a + p.value * p.stock, 0);
     return `<div class="panel"><h3>The wheel</h3><p class="muted">The most you can give away: <b>${money(capTotal)}</b> in coupons (every cap used). The budget limit is <b>${money(limit)}</b>. The prize desk stops coupons when the limit is reached.</p>
-      ${hq ? `<form data-form="lbudget" class="row" style="align-items:flex-end"><div><label for="bg">Budget limit ($)</label><input id="bg" name="limit" inputmode="numeric" value="${limit}" style="max-width:160px"></div><button class="btn" type="submit">Save limit</button></form>` : ''}
-      <div class="table-wrap gap"><table><thead><tr><th>Order</th><th>Prize</th><th>Value $ (0 = small prize)</th><th>Cap</th><th>Colour</th><th>Won</th><th></th></tr></thead><tbody>
-      ${ps.map((p) => `<tr><form id="pf-${p.id}" data-form="lprize" data-id="${p.id}"></form>
-        <td><input form="pf-${p.id}" name="order" inputmode="numeric" value="${p.sort_order}" style="width:64px" aria-label="Order"></td>
-        <td><input form="pf-${p.id}" name="name" value="${esc(p.name)}" maxlength="60" style="min-width:150px" aria-label="Prize name"></td>
-        <td><input form="pf-${p.id}" name="value" inputmode="numeric" value="${p.value}" style="width:90px" aria-label="Value" ${d0.given(p) ? 'readonly' : ''}></td>
-        <td><input form="pf-${p.id}" name="stock" inputmode="numeric" value="${p.stock}" style="width:90px" aria-label="Cap"></td>
-        <td><input form="pf-${p.id}" name="color" type="color" value="${esc(p.color)}" style="width:60px;padding:2px" aria-label="Colour"></td>
-        <td>${d0.given(p)}</td>
-        <td><button class="btn small" form="pf-${p.id}" type="submit">Save</button> ${d0.given(p) ? '' : `<button class="btn ghost small" data-act="ladmin-rmprize" data-id="${p.id}">Remove</button>`}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">No prizes yet.</td></tr>'}</tbody></table></div>
-      <form data-form="laddprize" class="row" style="margin-top:12px;align-items:flex-end">
-        <div style="flex:2;min-width:150px"><label for="np-name">New prize</label><input id="np-name" name="name" required placeholder="$20 coupon"></div>
-        <div style="flex:1;min-width:100px"><label for="np-value">Value $ (0 = small prize)</label><input id="np-value" name="value" inputmode="numeric" required></div>
-        <div style="flex:1;min-width:100px"><label for="np-stock">Cap (how many)</label><input id="np-stock" name="stock" inputmode="numeric" required></div>
-        <div><label for="np-color">Colour</label><input id="np-color" name="color" type="color" value="#560CC9" style="width:60px;padding:2px"></div>
-        <button class="btn" type="submit">Add prize</button></form></div>`;
+      ${hq ? `<form data-form="lbudget" class="row" style="align-items:flex-end"><div><label for="bg">Budget limit ($)</label><input id="bg" name="limit" inputmode="numeric" value="${limit}" style="max-width:160px"></div><button class="btn" type="submit">Save limit</button></form>` : ''}</div>
+      ${ps.map((p) => `<form class="panel prizecard" data-form="lprize" data-id="${p.id}">
+        <div class="row" style="justify-content:space-between"><h3><span class="dot-pill" style="background:${esc(p.color)}"></span>${esc(p.name)}</h3><span class="muted">${d0.given(p)} won of ${p.stock}</span></div>
+        <div class="prizegrid">
+          <div><label for="pz-${p.id}-name">Prize name</label><input id="pz-${p.id}-name" name="name" value="${esc(p.name)}" maxlength="60"></div>
+          <div><label for="pz-${p.id}-value">Value $ <span class="muted">(0 = small prize)</span></label><input id="pz-${p.id}-value" name="value" inputmode="numeric" value="${p.value}" ${d0.given(p) ? 'readonly' : ''}></div>
+          <div><label for="pz-${p.id}-stock">Cap (how many)</label><input id="pz-${p.id}-stock" name="stock" inputmode="numeric" value="${p.stock}"></div>
+          <div><label for="pz-${p.id}-order">Order</label><input id="pz-${p.id}-order" name="order" inputmode="numeric" value="${p.sort_order}"></div>
+          <div><label for="pz-${p.id}-color">Colour</label><input id="pz-${p.id}-color" name="color" type="color" value="${esc(p.color)}" style="width:64px;padding:2px"></div>
+        </div>
+        <label for="pz-${p.id}-msg">Message for the customer <span class="muted">(optional)</span></label>
+        <textarea id="pz-${p.id}-msg" name="message" rows="3" maxlength="300" data-input="lprize-hint" data-pid="${p.id}" placeholder="For example: Collect your chocolate bar from the Croydon Bakehouse stall.">${esc(p.message || '')}</textarea>
+        <p class="muted small" id="pz-${p.id}-hint" style="margin:4px 0 12px">${esc(noteHint(area, p, p.message))}</p>
+        <div class="row"><button class="btn small" type="submit">Save</button>${d0.given(p) ? '' : `<button class="btn ghost small" type="button" data-act="ladmin-rmprize" data-id="${p.id}">Remove</button>`}</div></form>`).join('') || '<div class="panel"><p class="muted">No prizes yet.</p></div>'}
+      <form class="panel" data-form="laddprize"><h3>Add a prize</h3>
+        <div class="prizegrid">
+          <div><label for="np-name">Prize name</label><input id="np-name" name="name" required placeholder="$20 coupon"></div>
+          <div><label for="np-value">Value $ <span class="muted">(0 = small prize)</span></label><input id="np-value" name="value" inputmode="numeric" required></div>
+          <div><label for="np-stock">Cap (how many)</label><input id="np-stock" name="stock" inputmode="numeric" required></div>
+          <div><label for="np-color">Colour</label><input id="np-color" name="color" type="color" value="#006BB6" style="width:64px;padding:2px"></div>
+        </div>
+        <label for="np-msg">Message for the customer <span class="muted">(optional)</span></label>
+        <textarea id="np-msg" name="message" rows="3" maxlength="300" placeholder="Added to this prize's text, email and coupon page."></textarea>
+        <p style="margin-top:12px"><button class="btn" type="submit">Add prize</button></p></form>`;
   }
   App.forms.lprize = async (f) => {
     const d = Object.fromEntries(new FormData(f));
-    const r = await LB.save('prize_update', { p_id: Number(f.dataset.id), p_name: d.name, p_value: parseInt(d.value, 10) || 0, p_stock: parseInt(d.stock, 10) || 0, p_color: d.color, p_order: parseInt(d.order, 10) || 0 });
+    const r = await LB.save('prize_update', { p_id: Number(f.dataset.id), p_name: d.name, p_value: parseInt(d.value, 10) || 0, p_stock: parseInt(d.stock, 10) || 0, p_color: d.color, p_order: parseInt(d.order, 10) || 0, p_message: String(d.message || '') });
     U.toast(r.ok ? 'Saved.' : r.error, !r.ok);
   };
   App.forms.laddprize = async (f) => {
     const d = Object.fromEntries(new FormData(f)), v = Number(d.value), q = Number(d.stock);
     if (!(v >= 0) || !(q >= 1)) return U.toast('Value and cap need to be numbers.', true);
-    const r = await LB.save('add_prize', { p_area: adminArea(App.ctx), p_name: d.name, p_value: Math.round(v), p_stock: Math.round(q), p_color: d.color });
+    const r = await LB.save('add_prize', { p_area: adminArea(App.ctx), p_name: d.name, p_value: Math.round(v), p_stock: Math.round(q), p_color: d.color, p_message: String(d.message || '') });
     if (r.ok) { f.reset(); U.toast('Prize added.'); } else U.toast(r.error, true);
   };
   App.acts['ladmin-rmprize'] = async (b) => { const r = await LB.save('remove_prize', { p_id: Number(b.dataset.id) }); U.toast(r.ok ? 'Removed.' : r.error, !r.ok); };
@@ -343,7 +363,7 @@
   };
 
   // ---------- Messages: the wording of the text and the email ----------
-  const PH = [['{name}', 'First name'], ['{value}', 'Coupon amount'], ['{code}', 'Coupon code'], ['{validFrom}', 'First day it works'], ['{validFromShort}', 'First day, short'], ['{useBy}', 'Last day it works'], ['{useByShort}', 'Last day, short'], ['{place}', 'Street name'], ['{event}', 'Event name'], ['{link}', 'Coupon link'], ['{shops}', 'Shops link']];
+  const PH = [['{name}', 'First name'], ['{prize}', 'Prize name'], ['{prizeNote}', 'Message for this prize'], ['{value}', 'Coupon amount'], ['{code}', 'Coupon code'], ['{validFrom}', 'First day it works'], ['{validFromShort}', 'First day, short'], ['{useBy}', 'Last day it works'], ['{useByShort}', 'Last day, short'], ['{place}', 'Street name'], ['{event}', 'Event name'], ['{link}', 'Coupon link'], ['{shops}', 'Shops link']];
   const msgKey = (area, k) => 'msg:' + area + ':' + k;
   const msgNow = (area, k) => D.state.settings[msgKey(area, k)] || '';
   const startsLater = (area) => { const ev = d0.eventsOf(area).slice(-1)[0]; return !!(ev && ev.valid_from && ev.valid_from > U.today()); };
@@ -351,7 +371,8 @@
     const a = d0.area(area) || {}, b = App.brandOf(area), ev = d0.eventsOf(area).slice(-1)[0] || {}, host = area + '.' + C.baseDomain;
     const useBy = ev.use_by ? U.date(ev.use_by) : 'Mon 30 Nov';
     const vf = ev.valid_from ? U.date(ev.valid_from) : U.date(U.today());
-    return { hasStart: startsLater(area), validFrom: vf, validFromShort: String(vf).replace(/^\w+\s/, ''), name: 'Sam', value: 5, code: 'CMS-1234', useBy, useByShort: String(useBy).replace(/^\w+\s/, ''), event: ev.name || 'the festival', place: b.place || a.name, area,
+    const withNote = d0.prizesOf(area).find((x) => Number(x.value) > 0 && String(x.message || '').trim());
+    return { prizeName: withNote ? withNote.name : '$5 coupon', prizeNote: withNote ? withNote.message : '', hasStart: startsLater(area), validFrom: vf, validFromShort: String(vf).replace(/^\w+\s/, ''), name: 'Sam', value: 5, code: 'CMS-1234', useBy, useByShort: String(useBy).replace(/^\w+\s/, ''), event: ev.name || 'the festival', place: b.place || a.name, area,
       origin: 'https://' + host, couponUrl: 'https://' + host + '/c/CMS-1234?k=0123456789abcdef0123', link: host + '/c/CMS-1234?k=0123456789abcdef0123', shopsUrl: 'https://' + host + '/shops',
       safetyUrl: 'https://' + C.baseDomain + '/safety', unsubUrl: '#', fromName: a.email_name || b.place, fromAddress: a.email_address || 'hello@' + C.baseDomain,
       color: b.color, accent: b.accent, headline: b.headline, palette: b.palette };
@@ -403,6 +424,7 @@
           <h4 style="margin:16px 0 6px">What it looks like</h4><div id="email-prev">${previewEmail(area, sub, body)}</div>
         </section>
       </div>
+      ${d0.prizesOf(area).some((x) => String(x.message || '').trim()) ? '' : '<p class="muted small">No prize has a message yet, so <code>{prizeNote}</code> shows as empty in these examples. Add one in the <b>Prizes</b> tab.</p>'}
       <p class="muted small">The example uses a made-up customer, "Sam". Texts go out through ClickSend and emails through Resend, the same as before.</p>`;
   }
   App.changes['lmsg-preview'] = (el) => {

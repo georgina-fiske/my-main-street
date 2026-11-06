@@ -113,7 +113,8 @@ create table prizes (
   value      int not null default 0,        -- 0 = a small prize handed over at the desk
   stock      int not null default 0,        -- how many in total (the cap). Left = stock - won
   color      text not null default '#560CC9',  -- the colour of its slice on the wheel
-  sort_order int not null default 0
+  sort_order int not null default 0,
+  message    text not null default ''       -- an extra note for the customer, added to this prize's text and email
 );
 
 create table signups (
@@ -382,7 +383,7 @@ begin
   end if;
   select * into ev from events where id = s.event;
   update signups
-     set prize = jsonb_build_object('id', p.id, 'name', p.name, 'value', p.value),
+     set prize = jsonb_build_object('id', p.id, 'name', p.name, 'value', p.value, 'note', p.message),
          spun_at = now(),
          use_by = coalesce(ev.use_by, _today() + 7),
          valid_from = ev.valid_from,
@@ -514,7 +515,7 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
-create function add_prize(p_area text, p_name text, p_value int, p_stock int, p_color text)
+create function add_prize(p_area text, p_name text, p_value int, p_stock int, p_color text, p_message text default '')
 returns jsonb language plpgsql security definer set search_path = public as $$
 begin
   if not _can_manage(p_area) then return _err('Please log in with a staff account.'); end if;
@@ -522,12 +523,12 @@ begin
   if p_value is null or p_value < 0 or p_value > 10000 then return _err('Value must be $0 or more.'); end if;
   if p_stock is null or p_stock < 1 or p_stock > 100000 then return _err('How many? Use 1 or more.'); end if;
   if coalesce(p_color, '') !~ '^#[0-9A-Fa-f]{6}$' then p_color := '#560CC9'; end if;
-  insert into prizes (area, name, value, stock, color, sort_order)
-  values (p_area, _clean(p_name, 60), p_value, p_stock, upper(p_color), coalesce((select max(sort_order) from prizes where area = p_area), 0) + 1);
+  insert into prizes (area, name, value, stock, color, sort_order, message)
+  values (p_area, _clean(p_name, 60), p_value, p_stock, upper(p_color), coalesce((select max(sort_order) from prizes where area = p_area), 0) + 1, left(btrim(coalesce(p_message, '')), 300));
   return jsonb_build_object('ok', true);
 end $$;
 
-create function prize_update(p_id bigint, p_name text, p_value int, p_stock int, p_color text, p_order int)
+create function prize_update(p_id bigint, p_name text, p_value int, p_stock int, p_color text, p_order int, p_message text default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare given int;
 begin
@@ -537,7 +538,13 @@ begin
   if coalesce(p_color, '') !~ '^#[0-9A-Fa-f]{6}$' then return _err('Colours need to look like #560CC9.'); end if;
   if _clean(p_name, 60) = '' then return _err('Please add a name.'); end if;
   if given > 0 and p_value <> (select value from prizes where id = p_id) then return _err('Someone has already won this, so its value cannot change.'); end if;
-  update prizes set name = _clean(p_name, 60), value = p_value, stock = p_stock, color = upper(p_color), sort_order = coalesce(p_order, sort_order) where id = p_id;
+  update prizes set name = _clean(p_name, 60), value = p_value, stock = p_stock, color = upper(p_color), sort_order = coalesce(p_order, sort_order),
+         message = case when p_message is null then message else left(btrim(p_message), 300) end
+   where id = p_id;
+  -- coupons already given show the new note too
+  if p_message is not null then
+    update signups set prize = prize || jsonb_build_object('note', left(btrim(p_message), 300)) where (prize->>'id')::bigint = p_id;
+  end if;
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -813,7 +820,7 @@ begin
       award_prize(text,bigint), undo_prize(text),
       shop_me(), shop_check(text), shop_use(text), shop_summary(), shop_reset_code(),
       shop_add(text,text,text), shop_update(text,text,text,boolean),
-      add_prize(text,text,int,int,text), prize_update(bigint,text,int,int,text,int), remove_prize(bigint),
+      add_prize(text,text,int,int,text,text), prize_update(bigint,text,int,int,text,int,text), remove_prize(bigint),
       set_setting(text,text), area_create(text,text,text,text,text,text,text,text,text),
       area_save_brand(text,jsonb,text,text,text), area_set_status(text,text), event_save(bigint,text,date,date,date), message_save(text,text,text),
       staff_me(), staff_list(), staff_remove(text), report_rows(text), report_log(text,text)

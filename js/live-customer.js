@@ -98,7 +98,7 @@
         <span class="muted">When it's your turn, show this screen to the staff. They'll scan your code.</span></div>${codeBlock(s.code)}`;
     }
     if (Number(p.value) === 0) {
-      return `<div class="win" role="status"><b style="font-size:24px;line-height:1.15;display:block">You won a ${esc(p.name)}!</b><p>Collect it at the desk now.</p></div>${THANKS}`;
+      return `<div class="win" role="status"><b style="font-size:24px;line-height:1.15;display:block">You won a ${esc(p.name)}!</b><p>Collect it at the desk now.</p>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>${THANKS}`;
     }
     if (s.redeemed) {
       return `<div class="statecard"><h3>Used</h3><p style="margin:0">Used at <b>${esc(d0.shopName(s.redeemed_at))}</b>, ${esc(U.when(s.redeemed_time))}.</p></div>${THANKS}`;
@@ -109,6 +109,7 @@
     const notYet = !!(s.valid_from && s.valid_from > U.today());
     return `<div class="win" role="status"><b style="font-size:24px;line-height:1.15;display:block">You won a ${money(p.value)} coupon!</b>
         ${notYet ? `<p><b>You can't use it yet.</b> It works from <b>${esc(U.date(s.valid_from))}</b> until <b>${esc(U.date(s.use_by))}</b>, at any shop on <b>${esc(b.place)}</b>.</p>` : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`}
+        ${p.note ? `<p>${esc(p.note)}</p>` : ''}
         <p style="font-size:18px;margin-top:10px">Your coupon code:</p><div class="bigcode">${esc(s.code)}</div>
         ${notYet ? '' : `<p>Use it by <b>${esc(U.date(s.use_by))}</b></p>`}
         <p style="margin-top:12px"><a class="btn" href="/shops">See the shops</a></p>

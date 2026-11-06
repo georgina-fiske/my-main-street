@@ -40,7 +40,7 @@
 
       const canUndo = undoLeft > 0 && last && (!last.redeemed || last.redeemed_at === 'desk');
       const result = last && last.prize ? `<div class="who" role="status"><b>${esc(S.lastAward.name)} won ${esc(S.lastAward.prize)}.</b>
-          ${S.lastAward.value > 0 ? (S.notice ? esc(S.notice) : 'Sending their coupon…') : 'Hand it over now.'}
+          ${S.lastAward.value > 0 ? (S.notice ? esc(S.notice) : 'Sending their coupon…') : ('Hand it over now.' + (S.lastAward.note ? ' ' + esc(S.lastAward.note) : ''))}
           ${S.noticeBad && S.lastAward.value > 0 ? ` <button class="btn small" data-act="ldesk-resend">Send again</button>` : ''}
           ${canUndo ? ` <button class="btn ghost small" data-act="ldesk-undo">Undo (${undoLeft}s)</button>` : ''}</div>` : '';
 
@@ -112,7 +112,7 @@
     if (!cur || !p || cur.prize) return;
     // Shown at once and kept on this iPad. It is sent in the background, and again if the signal drops.
     LB.dq.award(cur, p);
-    S.lastAward = { code: cur.code, name: cur.name, prize: p.name, value: Number(p.value), at: Date.now() };
+    S.lastAward = { code: cur.code, name: cur.name, prize: p.name, value: Number(p.value), note: p.message || '', at: Date.now() };
     S.deskCode = ''; S.notice = '';
     App.render(); focusId('desk-in');
   };

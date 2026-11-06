@@ -19,6 +19,7 @@
       'Hi {name},',
       'Thanks for spinning the wheel at {event} today!',
       '**You won a {value} coupon.**\n**Your coupon code: {code}**',
+      '{prizeNote}',
       hasStart
         ? "**You can't use it today.** It works from **{validFrom}** until **{useBy}**, at any participating shop on {place}. Just show this email or your code at the counter."
         : 'Spend it at any participating shop on {place} by {useBy}. Just show this email or your code at the counter.',
@@ -28,10 +29,10 @@
     ].join('\n\n')
   });
   const DEFAULTS = defaults(false);
-  const FIELDS = ['name', 'value', 'code', 'useBy', 'useByShort', 'validFrom', 'validFromShort', 'place', 'event', 'link', 'shops'];
+  const FIELDS = ['name', 'prize', 'prizeNote', 'value', 'code', 'useBy', 'useByShort', 'validFrom', 'validFromShort', 'place', 'event', 'link', 'shops'];
   // d -> the values that go into the {brackets}
   const valuesOf = (d, forEmail) => ({
-    name: d.name, value: money(d.value), code: d.code, useBy: d.useBy, useByShort: d.useByShort, validFrom: d.validFrom || '', validFromShort: d.validFromShort || '', place: d.place, event: d.event,
+    name: d.name, prize: d.prizeName || '', prizeNote: String(d.prizeNote || '').trim(), value: money(d.value), code: d.code, useBy: d.useBy, useByShort: d.useByShort, validFrom: d.validFrom || '', validFromShort: d.validFromShort || '', place: d.place, event: d.event,
     link: forEmail ? (d.couponUrl || d.link || '') : (d.link || ''), shops: d.shopsUrl || ''
   });
   const fill = (t, vars, enc) => String(t).replace(/\{(\w+)\}/g, (m, k) => (Object.prototype.hasOwnProperty.call(vars, k) ? enc(vars[k] == null ? '' : vars[k]) : m));
@@ -66,8 +67,9 @@
     const paras = text.split(/\n{2,}/).map((para) => {
       if (para.trim() === '[buttons]') return buttons;
       const safe = fill(esc(para.trim()), Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, esc(v)])), (x) => x);
+      if (!safe.trim()) return '';                                   // a paragraph that was only a {word} with nothing to say
       return `<p>${safe.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>')}</p>`;
-    }).join('\n        ');
+    }).filter(Boolean).join('\n        ');
     const html =
       `${banner}<div style="font-family:Montserrat,Arial,sans-serif;color:#1E0B45;line-height:1.5;font-size:15px;padding:${banner ? '16px 0 0' : '0'}">
         ${paras}
@@ -86,6 +88,13 @@
     const link = d.link || (domain + '/' + d.area + '/shops');
     const v = money(d.value);
     const vars = Object.assign(valuesOf(d, false), { link });
+    const note = String(d.prizeNote || '').replace(/\s+/g, ' ').trim();
+    const withNote = !note ? [] : d.hasStart ? [
+      `You won a ${v} coupon! Code ${d.code}. ${note} Use it ${d.validFromShort} to ${d.useByShort}, not before. ${link} Reply STOP to opt out`
+    ] : [
+      `You won a ${v} coupon for any ${d.place} shop. Code ${d.code}. ${note} Use by ${d.useByShort}. ${link} Reply STOP to opt out`,
+      `You won a ${v} coupon! Code ${d.code}. ${note} Use by ${d.useByShort}. ${link} Reply STOP to opt out`
+    ];
     const tries = d.hasStart ? [
       fill(defaults(true).sms, vars, (x) => String(x)),
       `You won a ${v} coupon! Code ${d.code}. Use it ${d.validFromShort} to ${d.useByShort} (not before). ${link} Reply STOP to opt out`,
@@ -96,8 +105,9 @@
       `You won a ${v} coupon! Code ${d.code}. Use by ${d.useByShort} at any ${d.place} shop: ${link} Reply STOP to opt out`,
       `You won a ${v} coupon! Code ${d.code}. Use by ${d.useByShort}. ${link} Reply STOP to opt out`
     ];
-    const text = tries.find((t) => t.length <= 160) || tries[tries.length - 1];
-    return { text, length: text.length };
+    // With a prize message: one text if it fits, otherwise two joined texts (up to 306 characters), otherwise leave the message out.
+    const text = withNote.find((t) => t.length <= 160) || withNote.find((t) => t.length <= 306) || tries.find((t) => t.length <= 160) || tries[tries.length - 1];
+    return { text, length: text.length, parts: text.length <= 160 ? 1 : 2, noteDropped: !!note && !withNote.includes(text) };
   }
 
   return { email, sms, DEFAULTS, defaults, FIELDS, unknownIn };

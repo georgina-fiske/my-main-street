@@ -94,6 +94,9 @@ exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netli
   const ev = (await sb.rows('/rest/v1/events?select=name&id=eq.' + s.event))[0];
   if (!priv || !area) return json(200, { ok: false, error: 'There are no contact details for this customer.' });
 
+  // The prize's own message (Admin > Prizes), read fresh so a change counts straight away.
+  const prizeRow = s.prize && s.prize.id ? (await sb.rows('/rest/v1/prizes?select=name,message&id=eq.' + Number(s.prize.id)))[0] : null;
+
   // The street's own wording (Admin > Messages). Anything not set uses the standard wording.
   const custom = {};
   for (const r of await sb.rows('/rest/v1/settings?select=key,value&key=like.' + encodeURIComponent('msg:' + area.id + ':*'))) custom[String(r.key).split(':')[2]] = r.value;
@@ -109,6 +112,7 @@ exports.handler = async (event, ...rest) => {   // rest, not named inputs: Netli
   const startsLater = !!(s.valid_from && String(s.valid_from).slice(0, 10) > todayMel);
   const fromIso = s.valid_from ? String(s.valid_from).slice(0, 10) : todayMel;
   const d = {
+    prizeName: (prizeRow && prizeRow.name) || s.prize.name, prizeNote: (prizeRow && prizeRow.message) || '',
     hasStart: startsLater, validFrom: dayName(fromIso), validFromShort: dayName(fromIso).replace(/^\w+\s/, ''),
     name: s.name, value: s.prize.value, code: s.code, useBy: dayName(s.use_by), useByShort: dayName(s.use_by).replace(/^\w+\s/, ''),
     event: (ev && ev.name) || 'the festival', place, area: area.id, origin,
