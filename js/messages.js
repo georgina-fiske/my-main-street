@@ -12,13 +12,13 @@
   // The standard wording. When coupons start on a later day (hasStart), it says so, and says you can't use it today.
   const defaults = (hasStart, hasNote) => ({
     sms: hasStart
-      ? 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use it between {validFromShort} and {useByShort}, not before. {link} Reply STOP to opt out'
-      : 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use by {useByShort}. {link} Reply STOP to opt out',
+      ? 'Thanks for spinning! You won: {prize}. Code: {code}. Use it between {validFromShort} and {useByShort}, not before. {link} Reply STOP to opt out'
+      : 'Thanks for spinning! You won: {prize}. Code: {code}. Use by {useByShort}. {link} Reply STOP to opt out',
     email_subject: "Thanks for spinning the wheel! Here's your coupon code",
     email_body: [
       'Hi {name},',
       'Thanks for spinning the wheel at {event} today!',
-      '**You won a {value} coupon.**\n**Your coupon code: {code}**',
+      '**You won: {prize}**\n**Your coupon code: {code}**',
       '{prizeNote}',
       // When the prize has its own message, that message says where it works, so we don't also say "any shop".
       hasStart
@@ -35,7 +35,7 @@
   const FIELDS = ['name', 'prize', 'prizeNote', 'value', 'code', 'useBy', 'useByShort', 'validFrom', 'validFromShort', 'place', 'event', 'link', 'shops'];
   // d -> the values that go into the {brackets}
   const valuesOf = (d, forEmail) => ({
-    name: d.name, prize: d.prizeName || '', prizeNote: String(d.prizeNote || '').trim(), value: money(d.value), code: d.code, useBy: d.useBy, useByShort: d.useByShort, validFrom: d.validFrom || '', validFromShort: d.validFromShort || '', place: d.place, event: d.event,
+    name: d.name, prize: d.prizeName || (money(d.value) + ' coupon'), prizeNote: String(d.prizeNote || '').trim(), value: money(d.value), code: d.code, useBy: d.useBy, useByShort: d.useByShort, validFrom: d.validFrom || '', validFromShort: d.validFromShort || '', place: d.place, event: d.event,
     link: forEmail ? (d.couponUrl || d.link || '') : (d.link || ''), shops: d.shopsUrl || ''
   });
   const fill = (t, vars, enc) => String(t).replace(/\{(\w+)\}/g, (m, k) => (Object.prototype.hasOwnProperty.call(vars, k) ? enc(vars[k] == null ? '' : vars[k]) : m));
@@ -90,23 +90,22 @@
       return { text, length: text.length, custom: true };
     }
     const link = d.link || (domain + '/' + d.area + '/shops');
-    const v = money(d.value);
+    const label = d.prizeName || (money(d.value) + ' coupon');      // customers read the prize name; the money is only for the back office
     const vars = Object.assign(valuesOf(d, false), { link });
     const note = String(d.prizeNote || '').replace(/\s+/g, ' ').trim();
     const withNote = !note ? [] : d.hasStart ? [
-      `You won a ${v} coupon! Code ${d.code}. ${note} Use between ${d.validFromShort} and ${d.useByShort}. ${link} Reply STOP to opt out`
+      `You won: ${label}. Code ${d.code}. ${note} Use between ${d.validFromShort} and ${d.useByShort}. ${link} Reply STOP to opt out`
     ] : [
-      `You won a ${v} coupon! Code ${d.code}. ${note} Use by ${d.useByShort}. ${link} Reply STOP to opt out`
+      `You won: ${label}. Code ${d.code}. ${note} Use by ${d.useByShort}. ${link} Reply STOP to opt out`
     ];
     const tries = d.hasStart ? [
       fill(defaults(true).sms, vars, (x) => String(x)),
-      `You won a ${v} coupon! Code ${d.code}. Use between ${d.validFromShort} and ${d.useByShort}. ${link} Reply STOP to opt out`,
-      `${v} coupon, code ${d.code}. Use ${d.validFromShort}-${d.useByShort}. ${link} STOP to opt out`
+      `You won: ${label}. Code ${d.code}. Use between ${d.validFromShort} and ${d.useByShort}. ${link} Reply STOP to opt out`,
+      `${label}, code ${d.code}. Use ${d.validFromShort}-${d.useByShort}. ${link} STOP to opt out`
     ] : [
       fill(DEFAULTS.sms, vars, (x) => String(x)),
-      `You won a ${v} coupon for any ${d.place} shop. Code ${d.code}. Use by ${d.useByShort}. ${link} Reply STOP to opt out`,
-      `You won a ${v} coupon! Code ${d.code}. Use by ${d.useByShort} at any ${d.place} shop: ${link} Reply STOP to opt out`,
-      `You won a ${v} coupon! Code ${d.code}. Use by ${d.useByShort}. ${link} Reply STOP to opt out`
+      `You won: ${label}. Code ${d.code}. Use by ${d.useByShort}. ${link} Reply STOP to opt out`,
+      `${label}, code ${d.code}. Use by ${d.useByShort}. ${link} STOP to opt out`
     ];
     // With a prize message: one text if it fits, otherwise two joined texts (up to 306 characters), otherwise leave the message out.
     const text = withNote.find((t) => t.length <= 160) || withNote.find((t) => t.length <= 306) || tries.find((t) => t.length <= 160) || tries[tries.length - 1];

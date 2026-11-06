@@ -87,7 +87,7 @@
 
   function phoneUse(s, ctx) {
     const ph = ctx.ph || {}, shops = d0.shops().filter((x) => x.area === s.area && x.claimed).slice().sort((a, b) => a.name.localeCompare(b.name));
-    if (ph.done) return `<div class="statecard good" role="status"><h2>Done! Take ${money(ph.done.value)} off their bill</h2><p>Used at ${esc(ph.done.shop)}.</p></div>`;
+    if (ph.done) return `<div class="statecard good" role="status"><h2>Done! ${ph.done.prize ? esc(ph.done.prize) : 'Take ' + money(ph.done.value) + ' off their bill'}</h2><p>Used at ${esc(ph.done.shop)}.</p></div>`;
     if (!ph.step) return `<p><button class="btn ghost" data-act="lphone-open">Shop: use this coupon</button></p>`;
     if (ph.step === 1) {
       // No shop has signed up yet: say when to check back, instead of an empty list.
@@ -114,7 +114,7 @@
         <p>Now join the line for the wheel. When it's your turn, show this screen to the staff. They'll scan your code.</p></div>${codeBlock(s.code)}`;
     }
     if (Number(p.value) === 0) {
-      return `<div class="win" role="status"><h2>You won a ${esc(p.name)}!</h2><p>Collect it at the desk now.</p>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>${THANKS}`;
+      return `<div class="win" role="status"><h2>You won: ${esc(p.name)}</h2><p>Collect it at the desk now.</p>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>${THANKS}`;
     }
     if (s.redeemed) {
       return `<div class="statecard"><h2>Used</h2><p>Used at <b>${esc(d0.shopName(s.redeemed_at))}</b>, ${esc(U.when(s.redeemed_time))}.</p></div>${THANKS}`;
@@ -123,7 +123,7 @@
       return `<div class="statecard bad"><h2>This coupon has run out</h2><p>It ran out on ${esc(sd(s.use_by))}.</p></div>`;
     }
     const notYet = !!(s.valid_from && s.valid_from > U.today());
-    return `<div class="win" role="status"><h2>You won a ${money(p.value)} coupon!</h2>
+    return `<div class="win" role="status"><h2>You won: ${esc(p.name)}</h2>
         ${notYet ? `<p><b>You can't use it yet.</b> Use it between <b>${esc(sd(s.valid_from))}</b> and <b>${esc(sd(s.use_by))}</b>${p.note ? '.' : `, at any shop on <b>${esc(b.place)}</b>.`}</p>` : (p.note ? '' : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`)}
         ${p.note ? `<p>${esc(p.note)}</p>` : ''}
         <p>Your coupon code</p><div class="bigcode">${esc(s.code)}</div>
@@ -196,7 +196,7 @@
     const r = await LB.save('use_on_phone', { p_code: ctx.params.code, p_token: ctx.params.token, p_shop: ph.shop, p_shop_code: code });
     ph.saving = false;
     if (!r.ok) { ph.err = r.error; return App.render(); }
-    ctx.ph = { done: { value: r.value, shop: r.shop } };
+    ctx.ph = { done: { value: r.value, shop: r.shop, prize: r.prize } };
     await D.fetchPass(ctx.params.code, ctx.params.token);
     App.render();
   };

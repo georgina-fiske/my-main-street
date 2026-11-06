@@ -331,7 +331,7 @@ begin
   if (s.prize->>'value')::int = 0 then return _err('This is a small prize. It is collected at the desk.'); end if;
   if s.redeemed then
     if s.redeemed_at = sh.id and s.redeemed_time > now() - interval '2 minutes' then   -- the same tap sent twice
-      return jsonb_build_object('ok', true, 'shop', sh.name, 'value', (s.prize->>'value')::int, 'name', s.name);
+      return jsonb_build_object('ok', true, 'shop', sh.name, 'value', (s.prize->>'value')::int, 'name', s.name, 'prize', s.prize->>'name');
     end if;
     select name into at_name from shops where id = s.redeemed_at;
     return _err('Already used at ' || coalesce(at_name, 'the prize desk') || ' on ' || _when(s.redeemed_time));
@@ -340,7 +340,7 @@ begin
   if s.valid_from is not null and s.valid_from > _today() then return _err('This coupon can''t be used yet. It works from ' || _day(s.valid_from) || '.'); end if;
   if sh.area <> s.area then return _err('This coupon is for a different street.'); end if;
   update signups set redeemed = true, redeemed_at = sh.id, redeemed_time = now() where code = s.code;
-  return jsonb_build_object('ok', true, 'shop', sh.name, 'value', (s.prize->>'value')::int, 'name', s.name);
+  return jsonb_build_object('ok', true, 'shop', sh.name, 'value', (s.prize->>'value')::int, 'name', s.name, 'prize', s.prize->>'name');
 end $$;
 
 -- "Unsubscribe" in an email or text: stop news and offers.
@@ -442,7 +442,8 @@ begin
   if s.valid_from is not null and s.valid_from > _today() then return jsonb_build_object('state', 'notyet', 'valid_from', _day(s.valid_from), 'use_by', _day(s.use_by)); end if;
   if s.area <> sh.area then return jsonb_build_object('state', 'otherarea'); end if;
   return jsonb_build_object('state', 'valid', 'code', s.code, 'name', s.name, 'last', s.last_initial,
-                            'value', (s.prize->>'value')::int, 'use_by', _day(s.use_by));
+                            'value', (s.prize->>'value')::int, 'use_by', _day(s.use_by),
+                            'prize', s.prize->>'name', 'note', s.prize->>'note');
 end $$;
 
 create function shop_use(p_code text)
@@ -457,7 +458,7 @@ begin
   if (s.prize->>'value')::int = 0 then return _err('This is a small prize. It is collected at the desk.'); end if;
   if s.redeemed then
     if s.redeemed_at = sh.id and s.redeemed_time > now() - interval '2 minutes' then   -- the same tap sent twice
-      return jsonb_build_object('ok', true, 'value', (s.prize->>'value')::int, 'name', s.name);
+      return jsonb_build_object('ok', true, 'value', (s.prize->>'value')::int, 'name', s.name, 'prize', s.prize->>'name', 'note', s.prize->>'note');
     end if;
     select name into at_name from shops where id = s.redeemed_at;
     return _err('Already used at ' || coalesce(at_name, 'the prize desk') || ' on ' || _when(s.redeemed_time));
@@ -466,7 +467,7 @@ begin
   if s.valid_from is not null and s.valid_from > _today() then return _err('This coupon can''t be used yet. It works from ' || _day(s.valid_from) || '.'); end if;
   if s.area <> sh.area then return _err('This coupon is for a different street.'); end if;
   update signups set redeemed = true, redeemed_at = sh.id, redeemed_time = now() where code = s.code;
-  return jsonb_build_object('ok', true, 'value', (s.prize->>'value')::int, 'name', s.name);
+  return jsonb_build_object('ok', true, 'value', (s.prize->>'value')::int, 'name', s.name, 'prize', s.prize->>'name', 'note', s.prize->>'note');
 end $$;
 
 -- The shop's own history. (Only this shop's coupons.)
@@ -474,7 +475,7 @@ create function shop_summary()
 returns jsonb language sql stable security definer set search_path = public as $$
   select jsonb_build_object(
     'used', coalesce((select jsonb_agg(jsonb_build_object('code', s.code, 'name', s.name, 'last', s.last_initial,
-              'value', (s.prize->>'value')::int, 'at', s.redeemed_time) order by s.redeemed_time desc)
+              'value', (s.prize->>'value')::int, 'prize', s.prize->>'name', 'at', s.redeemed_time) order by s.redeemed_time desc)
               from signups s where s.redeemed and s.redeemed_at = _my_shop() and (s.prize->>'value')::int > 0), '[]'::jsonb))
 $$;
 

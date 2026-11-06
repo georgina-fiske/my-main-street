@@ -102,7 +102,8 @@
       case 'expired': return bad(`This coupon ran out on ${esc(res.use_by)}`);
       case 'notyet': return bad(`Not valid yet. It works from ${esc(res.valid_from)}`, `Do not accept it today. It can be used from ${esc(res.valid_from)} until ${esc(res.use_by)}.`);
       case 'otherarea': return bad('This coupon is for a different street');
-      case 'valid': return `<div class="statecard good" role="status"><h3><span class="dotg g"></span>Valid. ${money(res.value)} coupon · ${esc(res.name)} ${esc(res.last)}. · Use by ${esc(res.use_by)}.</h3>
+      case 'valid': return `<div class="statecard good" role="status"><h3><span class="dotg g"></span>Valid: ${res.prize ? esc(res.prize) : money(res.value) + ' coupon'} · ${esc(res.name)} ${esc(res.last)}. · Use by ${esc(res.use_by)}</h3>
+          ${res.note ? `<p style="margin:0 0 10px"><b>Give them:</b> ${esc(res.note)}</p>` : ''}
           <p class="muted" style="margin:0 0 10px">One coupon per bill. Used in full: no change or cash back.</p>
           <button class="btn big" data-act="lshop-use" data-code="${esc(res.code)}" ${App.state.shopSaving ? 'disabled' : ''}>${App.state.shopSaving ? 'Saving…' : 'Use it now'}</button></div>`;
       default: return '';
@@ -146,7 +147,7 @@
               <input id="shop-code" name="code" placeholder="CMS-4821 or just 4821" autocomplete="off" style="font-size:26px;padding:16px" value="${esc(S.shopCodeIn || '')}">
               <div class="row" style="margin-top:10px"><button class="btn" type="submit">Check it</button><button class="btn sun" type="button" data-act="lshop-scan">Scan with the camera</button></div></form>
             <p class="muted small">A barcode scanner can type into the box. It sends when it presses Enter.</p>
-            ${justDone ? `<div class="statecard good" role="status"><h3><span class="dotg g"></span>Done! Take ${money(justDone.value)} off their bill.</h3><p class="muted" style="margin:0">Saved against ${esc(me.name)}.</p>
+            ${justDone ? `<div class="statecard good" role="status"><h3><span class="dotg g"></span>Done! ${justDone.prize ? esc(justDone.prize) : 'Take ' + money(justDone.value) + ' off their bill'}</h3>${justDone.note ? `<p style="margin:0 0 6px"><b>Give them:</b> ${esc(justDone.note)}</p>` : ''}<p class="muted" style="margin:0">Saved against ${esc(me.name)}.</p>
                 <p style="margin:10px 0 0"><button class="btn" data-act="lshop-next">Next customer</button></p></div>` : resultCard(chk && chk.res, me.name)}
           </section>
           <section>${codeCard(me.code)}
@@ -154,7 +155,7 @@
         </div>
         <section class="panel gap"><h3>Your coupons</h3>
           <div class="stats" style="margin:6px 0 12px"><div class="stat"><b>${used.length}</b><span>coupons used here</span></div><div class="stat"><b>${money(total)}</b><span>total value</span></div></div>
-          ${used.length ? `<div class="table-wrap"><table><thead><tr><th>Code</th><th>Customer</th><th>Value</th><th>When</th></tr></thead><tbody>${used.map((x) => `<tr><td>${esc(x.code)}</td><td>${esc(x.name)} ${esc(x.last)}.</td><td>${money(x.value)}</td><td>${esc(U.when(x.at))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No coupons used here yet.</p>'}
+          ${used.length ? `<div class="table-wrap"><table><thead><tr><th>Code</th><th>Customer</th><th>Prize</th><th>When</th></tr></thead><tbody>${used.map((x) => `<tr><td>${esc(x.code)}</td><td>${esc(x.name)} ${esc(x.last)}.</td><td>${esc(x.prize || money(x.value))}</td><td>${esc(U.when(x.at))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No coupons used here yet.</p>'}
           <p class="muted small" style="margin-top:10px">You only see your own shop's coupons. Fruitbowl uses these to pay you back.</p></section>
         <p class="muted small">Another way: on a customer's own phone, tap "Shop: use this coupon", choose your shop, and type your shop code.</p>
       </main>${LB.footer()}`;
@@ -180,7 +181,7 @@
     const r = await LB.save('shop_use', { p_code: code });
     S.shopSaving = false;
     if (r.ok) {
-      S.shopDone = { code, value: r.value || value };
+      S.shopDone = { code, value: r.value || value, prize: r.prize, note: r.note };
       S.shopSum = await D.read('shop_summary');
     } else {
       U.toast(r.error, true);

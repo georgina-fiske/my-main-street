@@ -258,7 +258,7 @@
         <div class="row" style="justify-content:space-between"><h3><span class="dot-pill" style="background:${esc(p.color)}"></span>${esc(p.name)}</h3><span class="muted">${d0.given(p)} won of ${p.stock}</span></div>
         <div class="prizegrid">
           <div><label for="pz-${p.id}-name">Prize name</label><input id="pz-${p.id}-name" name="name" value="${esc(p.name)}" maxlength="60"></div>
-          <div><label for="pz-${p.id}-value">Value $ <span class="muted">(0 = small prize)</span></label><input id="pz-${p.id}-value" name="value" inputmode="numeric" value="${p.value}" ${d0.given(p) ? 'readonly' : ''}></div>
+          <div><label for="pz-${p.id}-value">Value $ <span class="muted">(budget only. Customers never see it. 0 = small prize)</span></label><input id="pz-${p.id}-value" name="value" inputmode="numeric" value="${p.value}" ${d0.given(p) ? 'readonly' : ''}></div>
           <div><label for="pz-${p.id}-stock">Cap (how many)</label><input id="pz-${p.id}-stock" name="stock" inputmode="numeric" value="${p.stock}"></div>
           <div><label for="pz-${p.id}-order">Order</label><input id="pz-${p.id}-order" name="order" inputmode="numeric" value="${p.sort_order}"></div>
           <div><label for="pz-${p.id}-color">Colour</label><input id="pz-${p.id}-color" name="color" type="color" value="${esc(p.color)}" style="width:64px;padding:2px"></div>
@@ -270,7 +270,7 @@
       <form class="panel" data-form="laddprize"><h3>Add a prize</h3>
         <div class="prizegrid">
           <div><label for="np-name">Prize name</label><input id="np-name" name="name" required placeholder="$20 coupon"></div>
-          <div><label for="np-value">Value $ <span class="muted">(0 = small prize)</span></label><input id="np-value" name="value" inputmode="numeric" required></div>
+          <div><label for="np-value">Value $ <span class="muted">(budget only. Customers never see it. 0 = small prize)</span></label><input id="np-value" name="value" inputmode="numeric" required></div>
           <div><label for="np-stock">Cap (how many)</label><input id="np-stock" name="stock" inputmode="numeric" required></div>
           <div><label for="np-color">Colour</label><input id="np-color" name="color" type="color" value="#006BB6" style="width:64px;padding:2px"></div>
         </div>
@@ -365,7 +365,7 @@
   };
 
   // ---------- Messages: the wording of the text and the email ----------
-  const PH = [['{name}', 'First name'], ['{prize}', 'Prize name'], ['{prizeNote}', 'Message for this prize'], ['{value}', 'Coupon amount'], ['{code}', 'Coupon code'], ['{validFrom}', 'First day it works'], ['{validFromShort}', 'First day, short'], ['{useBy}', 'Last day it works'], ['{useByShort}', 'Last day, short'], ['{place}', 'Street name'], ['{event}', 'Event name'], ['{link}', 'Coupon link'], ['{shops}', 'Shops link']];
+  const PH = [['{name}', 'First name'], ['{prize}', 'Prize name'], ['{prizeNote}', 'Message for this prize'], ['{value}', 'Dollar value (back office)'], ['{code}', 'Coupon code'], ['{validFrom}', 'First day it works'], ['{validFromShort}', 'First day, short'], ['{useBy}', 'Last day it works'], ['{useByShort}', 'Last day, short'], ['{place}', 'Street name'], ['{event}', 'Event name'], ['{link}', 'Coupon link'], ['{shops}', 'Shops link']];
   const msgKey = (area, k) => 'msg:' + area + ':' + k;
   const msgNow = (area, k) => D.state.settings[msgKey(area, k)] || '';
   const anyNote = (area) => d0.prizesOf(area).some((x) => Number(x.value) > 0 && String(x.message || '').trim());
