@@ -10,7 +10,7 @@
   // d: {name, value, code, useBy ("Sat 14 Nov"), useByShort ("14 Nov"), event, place, area, fromName, fromAddress, replyTo, unsubUrl, origin}
   // ---- The wording. Staff can change it in Admin > Messages. Words in {curly brackets} are filled in per customer. ----
   // The standard wording. When coupons start on a later day (hasStart), it says so, and says you can't use it today.
-  const defaults = (hasStart) => ({
+  const defaults = (hasStart, hasNote) => ({
     sms: hasStart
       ? 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use it between {validFromShort} and {useByShort}, not before. {link} Reply STOP to opt out'
       : 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use by {useByShort}. {link} Reply STOP to opt out',
@@ -20,9 +20,12 @@
       'Thanks for spinning the wheel at {event} today!',
       '**You won a {value} coupon.**\n**Your coupon code: {code}**',
       '{prizeNote}',
+      // When the prize has its own message, that message says where it works, so we don't also say "any shop".
       hasStart
-        ? "**You can't use it today.** Use it between **{validFromShort}** and **{useByShort}**, at any participating shop on {place}. Just show this email or your code at the counter."
-        : 'Spend it at any participating shop on {place} by {useByShort}. Just show this email or your code at the counter.',
+        ? (hasNote ? "**You can't use it today.** Use it between **{validFromShort}** and **{useByShort}**. Just show this email or your code at the counter."
+                   : "**You can't use it today.** Use it between **{validFromShort}** and **{useByShort}**, at any participating shop on {place}. Just show this email or your code at the counter.")
+        : (hasNote ? 'Use it by {useByShort}. Just show this email or your code at the counter.'
+                   : 'Spend it at any participating shop on {place} by {useByShort}. Just show this email or your code at the counter.'),
       '[buttons]',
       "We're so excited to bring life back to {place}. Stay tuned: we'll keep you posted as the next part launches.",
       'See you on Main Street!'
@@ -54,7 +57,8 @@
     const shops = d.shopsUrl || url + '/' + d.area + '/shops';
     const main = hexOr(d.color, '#23003F'), accent = hexOr(d.accent, '#FFFDB4');
     const c = d.custom || {};
-    const subject = fill((c.email_subject && String(c.email_subject).trim()) || defaults(!!d.hasStart).email_subject, valuesOf(d, true), (x) => String(x).replace(/[\r\n]+/g, ' '));
+    const hasNote = !!String(d.prizeNote || '').trim();
+    const subject = fill((c.email_subject && String(c.email_subject).trim()) || defaults(!!d.hasStart, hasNote).email_subject, valuesOf(d, true), (x) => String(x).replace(/[\r\n]+/g, ' '));
     const pal = (Array.isArray(d.palette) ? d.palette : []).filter((x) => /^#[0-9a-f]{6}$/i.test(x));
     const banner = d.headline && pal.length >= 3
       ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td style="background:${pal[0]};color:${inkOn(pal[0])};padding:20px 16px;font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:26px;line-height:1.05;text-transform:uppercase">${esc(d.headline)}</td></tr><tr><td style="padding:0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${pal.slice(1).map((x) => `<td height="14" style="background:${x};font-size:0;line-height:0">&nbsp;</td>`).join('')}</tr></table></td></tr></table>`
@@ -63,7 +67,7 @@
         ${d.couponUrl ? `<p style="font-size:13px;color:#5E5180">If a button doesn't open, copy this link into your browser:<br>${esc(d.couponUrl)}</p>` : ''}`;
     // The body: blank lines make paragraphs, **double stars** make bold, and a line with just [buttons] is where the buttons go.
     const vars = valuesOf(d, true);
-    const text = ((c.email_body && String(c.email_body).trim()) || defaults(!!d.hasStart).email_body).replace(/\r/g, '');
+    const text = ((c.email_body && String(c.email_body).trim()) || defaults(!!d.hasStart, hasNote).email_body).replace(/\r/g, '');
     const paras = text.split(/\n{2,}/).map((para) => {
       if (para.trim() === '[buttons]') return buttons;
       const safe = fill(esc(para.trim()), Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, esc(v)])), (x) => x);
@@ -92,7 +96,6 @@
     const withNote = !note ? [] : d.hasStart ? [
       `You won a ${v} coupon! Code ${d.code}. ${note} Use between ${d.validFromShort} and ${d.useByShort}. ${link} Reply STOP to opt out`
     ] : [
-      `You won a ${v} coupon for any ${d.place} shop. Code ${d.code}. ${note} Use by ${d.useByShort}. ${link} Reply STOP to opt out`,
       `You won a ${v} coupon! Code ${d.code}. ${note} Use by ${d.useByShort}. ${link} Reply STOP to opt out`
     ];
     const tries = d.hasStart ? [

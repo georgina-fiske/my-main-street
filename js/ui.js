@@ -220,7 +220,8 @@
   };
   App.councilBanner = (b, turn) => {
     const { r } = App.pubColours(b, turn);
-    return `<header class="hero cbanner" aria-label="${esc(b.headline || b.place)}"><h1>${esc(b.headline || b.place)}</h1>
+    const words = String(b.headline || b.place);
+    return `<header class="hero cbanner${words.length > 28 ? ' long' : ''}" aria-label="${esc(words)}"><h1>${esc(words)}</h1>
       <div class="skyline" aria-hidden="true">${r.slice(1).map((c) => `<i style="background:${c}"></i>`).join('')}</div></header>`;
   };
   App.colourStrip = (b) => { const pal = App.palette(b); return pal.length ? `<div class="cstrip" aria-hidden="true">${pal.map((c) => `<i style="background:${c}"></i>`).join('')}</div>` : ''; };

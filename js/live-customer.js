@@ -13,7 +13,7 @@
   const THANKS = `<div class="ticket thanks"><h2>Thanks for joining us!</h2><p>We're so excited to bring you back to your Main Street.</p></div>`;
   const ls = { get: (k) => App.store.get(k), set: (k, v) => App.store.set(k, v) };
   const FRIENDLY = (what) => `<details class="friendly"><summary>If a shop isn't sure how this works</summary>
-    <p>This is brand new, so some shops may not have set up yet. That's okay. Please be kind, and feel free to spend your ${what} at another shop on the street instead.</p></details>`;
+    <p>This is brand new, so some shops may not have set up yet. That's okay. Please be kind.</p></details>`;
 
   // ---------- 1. the sign-up page ----------
   LP.signup = {
@@ -124,7 +124,7 @@
     }
     const notYet = !!(s.valid_from && s.valid_from > U.today());
     return `<div class="win" role="status"><h2>You won a ${money(p.value)} coupon!</h2>
-        ${notYet ? `<p><b>You can't use it yet.</b> Use it between <b>${esc(sd(s.valid_from))}</b> and <b>${esc(sd(s.use_by))}</b>, at any shop on <b>${esc(b.place)}</b>.</p>` : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`}
+        ${notYet ? `<p><b>You can't use it yet.</b> Use it between <b>${esc(sd(s.valid_from))}</b> and <b>${esc(sd(s.use_by))}</b>${p.note ? '.' : `, at any shop on <b>${esc(b.place)}</b>.`}</p>` : (p.note ? '' : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`)}
         ${p.note ? `<p>${esc(p.note)}</p>` : ''}
         <p>Your coupon code</p><div class="bigcode">${esc(s.code)}</div>
         ${notYet ? '' : s.valid_from ? `<p>Use it between <b>${esc(sd(s.valid_from))}</b> and <b>${esc(sd(s.use_by))}</b></p>` : `<p>Use it by <b>${esc(sd(s.use_by))}</b></p>`}
@@ -175,7 +175,9 @@
         return App.custPage(b, `<div class="ticket"><h2>You've already signed up.</h2><span class="muted">Show this code to the staff at the wheel. When you win, we'll send your coupon by email or text.</span></div>${codeBlock(code)}
           <p class="small muted">Can't find your link? Ask the staff at the desk.</p>`);
       }
-      return App.custPage(b, `${couponState(s, ctx, b)}${net}${LB.syncBar()}`);
+      // Once a prize has been given, the headline on this page changes to "Croydon Main Street is My Main Street".
+      const head = s.prize ? Object.assign({}, b, { headline: `${b.place} is ${C.siteName}` }) : b;
+      return App.custPage(head, `${couponState(s, ctx, b)}${net}${LB.syncBar()}`);
     }
   };
 
@@ -214,11 +216,11 @@
     render(ctx, b) {
       const a = areaOf(ctx), mine = ls.get('msr-code');
       const win = LB.windowText(d0.eventsOf(a).slice(-1)[0]);
-      return App.custPage(b, `<h2>Spend your coupon at any shop on ${esc(b.place)}</h2>
-        ${win ? `<p>${esc(win)}</p>` : ''}
+      return App.custPage(b, `<h2>Shops on ${esc(b.place)}</h2>
+        <p>Your coupon says where you can use it.${win ? ' ' + esc(win) : ''}</p>
         <label for="shop-q" class="sr">Search shops</label><input id="shop-q" type="search" placeholder="Search shops" data-input="shop-search" autocomplete="off">
         <div id="shoplist" class="grid" style="gap:10px">${shopRows(a, App.state.shopQ)}</div>
-        <p><b>Shop not listed?</b> Every shop on ${esc(b.place)} takes coupons.</p>
+        
         ${FRIENDLY('coupon')}
         ${mine ? `<p><a class="btn ghost" href="/c/${esc(mine)}${ls.get('msr-token') ? '?k=' + esc(ls.get('msr-token')) : ''}">Back to my coupon</a></p>` : ''}`);
     }

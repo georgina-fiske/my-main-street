@@ -1,5 +1,6 @@
 -- Run this in a NEW query. It does not wipe anything.
 -- Adds "coupons work from" (a start date): the system refuses a coupon before it, and Admin > Key details sets the dates.
+-- It also sets Croydon's dates to 13 Nov to 30 Nov 2026. Change them any time in Admin > Key details.
 
 alter table events  add column if not exists valid_from date;
 alter table signups add column if not exists valid_from date;
@@ -239,3 +240,7 @@ begin
 end $$;
 
 grant execute on function event_save(bigint,text,date,date,date) to authenticated;
+
+-- Croydon: coupons work between 13 Nov and 30 Nov 2026. Coupons already given follow.
+update events set valid_from = date '2026-11-13', use_by = date '2026-11-30' where area = 'croydon';
+update signups set valid_from = date '2026-11-13', use_by = date '2026-11-30' where area = 'croydon' and prize is not null and not redeemed;

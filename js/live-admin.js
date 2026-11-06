@@ -368,6 +368,7 @@
   const PH = [['{name}', 'First name'], ['{prize}', 'Prize name'], ['{prizeNote}', 'Message for this prize'], ['{value}', 'Coupon amount'], ['{code}', 'Coupon code'], ['{validFrom}', 'First day it works'], ['{validFromShort}', 'First day, short'], ['{useBy}', 'Last day it works'], ['{useByShort}', 'Last day, short'], ['{place}', 'Street name'], ['{event}', 'Event name'], ['{link}', 'Coupon link'], ['{shops}', 'Shops link']];
   const msgKey = (area, k) => 'msg:' + area + ':' + k;
   const msgNow = (area, k) => D.state.settings[msgKey(area, k)] || '';
+  const anyNote = (area) => d0.prizesOf(area).some((x) => Number(x.value) > 0 && String(x.message || '').trim());
   const startsLater = (area) => { const ev = d0.eventsOf(area).slice(-1)[0]; return !!(ev && ev.valid_from && ev.valid_from > U.today()); };
   function sampleFor(area) {
     const a = d0.area(area) || {}, b = App.brandOf(area), ev = d0.eventsOf(area).slice(-1)[0] || {}, host = area + '.' + C.baseDomain;
@@ -380,7 +381,7 @@
       color: b.color, accent: b.accent, headline: b.headline, palette: b.palette };
   }
   function previewSms(area, text) {
-    const standard = String(text).replace(/\r/g, '').trim() === window.Messages.defaults(startsLater(area)).sms;      // the standard wording shortens itself to fit one text
+    const standard = String(text).replace(/\r/g, '').trim() === window.Messages.defaults(startsLater(area), anyNote(area)).sms;      // the standard wording shortens itself to fit one text
     const r = window.Messages.sms(Object.assign(sampleFor(area), standard ? {} : { custom: { sms: text } }));
     const n = r.length, parts = n <= 160 ? 1 : Math.ceil(n / 153);
     return { html: `<div class="smsbubble">${esc(r.text)}</div>`, n, parts, r };
@@ -398,7 +399,7 @@
     return out.map((w) => `<p class="warnline">${esc(w)}</p>`).join('');
   };
   function messagesTab(area) {
-    const M = window.Messages, D0 = M.defaults(startsLater(area));
+    const M = window.Messages, D0 = M.defaults(startsLater(area), anyNote(area));
     const sms = msgNow(area, 'sms') || D0.sms, sub = msgNow(area, 'email_subject') || D0.email_subject, body = msgNow(area, 'email_body') || D0.email_body;
     const ps = previewSms(area, sms);
     return `<div class="panel"><h3>What customers receive</h3>
@@ -435,11 +436,11 @@
       const p = previewSms(area, el.value);
       q('sms-prev').innerHTML = p.html;
       q('sms-meta').textContent = p.n + ' characters. ' + (p.parts === 1 ? 'Sends as 1 text.' : 'Sends as ' + p.parts + ' texts, and costs more.') + ' One text is up to 160 characters.';
-      q('sms-warn').innerHTML = warnFor(el.value, true, startsLater(area) && el.value.trim() !== window.Messages.defaults(true).sms);
+      q('sms-warn').innerHTML = warnFor(el.value, true, startsLater(area) && el.value.trim() !== window.Messages.defaults(true, anyNote(area)).sms);
     } else {
       const sub = q('msg-sub').value, body = q('msg-body').value;
       q('email-prev').innerHTML = previewEmail(area, sub, body);
-      q('email-warn').innerHTML = warnFor(sub + '\n' + body, false, startsLater(area) && body.trim() !== window.Messages.defaults(true).email_body);
+      q('email-warn').innerHTML = warnFor(sub + '\n' + body, false, startsLater(area) && body.trim() !== window.Messages.defaults(true, anyNote(area)).email_body);
     }
   };
   App.acts['lmsg-insert'] = (b) => {
@@ -450,14 +451,14 @@
     App.changes['lmsg-preview'](t);
   };
   App.acts['lmsg-reset'] = (b) => {
-    const D0 = window.Messages.defaults(startsLater(adminArea(App.ctx))), q = (id) => document.getElementById(id);
+    const D0 = window.Messages.defaults(startsLater(adminArea(App.ctx)), anyNote(adminArea(App.ctx))), q = (id) => document.getElementById(id);
     if (b.dataset.kind === 'sms') { q('msg-sms').value = D0.sms; App.changes['lmsg-preview'](q('msg-sms')); }
     else { q('msg-sub').value = D0.email_subject; q('msg-body').value = D0.email_body; App.changes['lmsg-preview'](q('msg-body')); }
     U.toast('Standard wording is back. Press Save to keep it.');
   };
   const area0 = () => adminArea(App.ctx);
   App.forms.lmsg = async (f) => {
-    const area = adminArea(App.ctx), D0 = window.Messages.defaults(startsLater(area0())), d = Object.fromEntries(new FormData(f));
+    const area = adminArea(App.ctx), D0 = window.Messages.defaults(startsLater(area0()), anyNote(area0())), d = Object.fromEntries(new FormData(f));
     const pairs = f.dataset.kind === 'sms' ? [['sms', d.text, D0.sms]] : [['email_subject', d.subject, D0.email_subject], ['email_body', d.body, D0.email_body]];
     for (const [kind, text, dflt] of pairs) {
       const same = String(text).replace(/\r/g, '').trim() === dflt;
