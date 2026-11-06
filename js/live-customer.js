@@ -18,6 +18,16 @@
   LP.signup = {
     brand: brandFor,
     title: () => 'Sign up',
+    async after(ctx) {
+      // A saved code on this phone: check it still exists. If the sign-up was removed, forget it so nobody is told they have signed up.
+      const code = ls.get('msr-code'), tk = ls.get('msr-token');
+      if (!code || !tk || ctx.checkedSaved) return;
+      ctx.checkedSaved = true;
+      const local = LB.sq.find(code);
+      if (local && local.status === 'pending') return;                 // still waiting to be sent: it is real
+      const r = await D.fetchPass(code, tk);
+      if (!r && !D.offline) { ls.set('msr-code', ''); ls.set('msr-token', ''); App.render(); }
+    },
     render(ctx, b) {
       const a = d0.area(areaOf(ctx));
       if (!a) return App.custPage(b, '<h2>We can\'t find that street</h2><p>Check the web address and try again.</p>');
@@ -153,6 +163,12 @@
       if (!s && local && local.status === 'pending') return App.custPage(b, pendingView(local, b) + LB.syncBar());
       if (!s && local && local.status === 'failed') return App.custPage(b, `<div class="statecard bad"><h3>We couldn't save your sign-up</h3><p style="margin:0">${esc(local.error || 'Please ask the staff for help.')}</p></div>`);
       if (!s) {
+        // A link that has its secret but finds nothing: the sign-up was removed. Say so (and forget it on this phone).
+        if (ctx.params.token) {
+          if (ls.get('msr-code') === ctx.params.code) { ls.set('msr-code', ''); ls.set('msr-token', ''); }
+          return App.custPage(b, `<div class="statecard bad"><h3>We can't find this coupon</h3><p style="margin:0">It may have been removed. You can sign up again, or ask the staff at the desk.</p></div>
+            <p><a class="btn big" href="/">Sign up</a></p>`);
+        }
         // Someone who signed up twice sees their code, but not the secret link.
         const code = ctx.params.code;
         return App.custPage(b, `<div class="ticket"><h2>You've already signed up.</h2><span class="muted">Show this code to the staff at the wheel. When you win, we'll send your coupon by email or text.</span></div>${codeBlock(code)}
