@@ -9,7 +9,7 @@
   LB.windowText = (ev) => (!ev || !ev.use_by ? '' : ev.valid_from ? `Use coupons between ${U.date(ev.valid_from)} and ${U.date(ev.use_by)}.` : `Use coupons by ${U.date(ev.use_by)}.`);
   LB.councilName = (a) => (a && a.council_area ? a.council_area + ' City Council' : 'Council');
   const brandFor = (ctx) => (d0.area(areaOf(ctx)) ? App.brandOf(areaOf(ctx)) : LB.fb());
-  const THANKS = `<div class="ticket thanks"><b>Thanks for joining us!</b><br><span class="muted">We're so excited to bring you back to your Main Street.</span></div>`;
+  const THANKS = `<div class="ticket thanks"><h2>Thanks for joining us!</h2><p>We're so excited to bring you back to your Main Street.</p></div>`;
   const ls = { get: (k) => App.store.get(k), set: (k, v) => App.store.set(k, v) };
   const FRIENDLY = (what) => `<details class="friendly"><summary>If a shop isn't sure how this works</summary>
     <p>This is brand new, so some shops may not have set up yet. That's okay. Please be kind, and feel free to spend your ${what} at another shop on the street instead.</p></details>`;
@@ -32,25 +32,25 @@
       const a = d0.area(areaOf(ctx));
       if (!a) return App.custPage(b, '<h2>We can\'t find that street</h2><p>Check the web address and try again.</p>');
       const code = ls.get('msr-code'), tk = ls.get('msr-token');
-      const again = code ? `<p class="who" style="margin:0">You've already signed up on this phone. <a href="/c/${esc(code)}${tk ? '?k=' + esc(tk) : ''}">See my code</a></p>` : '';
+      const again = code ? `<p class="who">You've already signed up on this phone. <a href="/c/${esc(code)}${tk ? '?k=' + esc(tk) : ''}">See my code</a></p>` : '';
       const closed = a.status !== 'live';
       return App.custPage(b, `${again}
-        <h2>${esc(b.welcome)}</h2>
-        <p class="muted" style="margin:0">One sign-up per email and mobile number.${LB.windowText(d0.eventsOf(a.id).slice(-1)[0]) ? ' ' + esc(LB.windowText(d0.eventsOf(a.id).slice(-1)[0])) : ''}</p>
-        ${closed ? '<div class="statecard bad"><h3>Sign-ups are not open yet</h3><p style="margin:0">Please come back soon.</p></div>' : ''}
+        <h2>${esc(String(b.welcome || '').replace(/[.]+$/, ''))}</h2>
+        <p>One sign-up per email and mobile number.${LB.windowText(d0.eventsOf(a.id).slice(-1)[0]) ? ' ' + esc(LB.windowText(d0.eventsOf(a.id).slice(-1)[0])) : ''}</p>
+        ${closed ? '<div class="statecard bad"><h2>Sign-ups are not open yet</h2><p>Please come back soon.</p></div>' : ''}
         <form data-form="lsignup" data-area="${esc(a.id)}" novalidate>
           <label for="f-name">First name</label><input id="f-name" name="name" required autocomplete="given-name" maxlength="40">
           <label for="f-last">Last name</label><input id="f-last" name="last" required autocomplete="family-name" maxlength="40">
           <label for="f-post">Postcode</label><input id="f-post" name="postcode" inputmode="numeric" maxlength="4" required autocomplete="postal-code">
           <label for="f-email">Email</label><input id="f-email" name="email" type="email" required autocomplete="email" maxlength="120">
           <label for="f-mob">Mobile</label><input id="f-mob" name="mobile" inputmode="tel" required autocomplete="tel" placeholder="04xx xxx xxx" maxlength="14">
-          <fieldset style="border:0;padding:0;margin:14px 0 0"><legend style="font-weight:700;font-size:15px">Send my coupon by:</legend>
-            <div class="row" style="flex-wrap:nowrap"><label class="check" style="margin:4px 14px 0 0"><input type="radio" id="f-c-email" name="contact" value="email" checked> Email</label>
-            <label class="check" style="margin:4px 0 0"><input type="radio" id="f-c-text" name="contact" value="text"> Text message</label></div></fieldset>
-          <label class="check" style="margin-top:14px"><input type="checkbox" id="f-optin" name="optin"> <span>I agree to receive news and updates from ${esc(LB.councilName(a))}, the ${esc(b.place)} Traders Association, or related parties (optional). We never sell your details.</span></label>
+          <fieldset><legend>Send my coupon by</legend>
+            <div class="row"><label class="check"><input type="radio" id="f-c-email" name="contact" value="email" checked> Email</label>
+            <label class="check"><input type="radio" id="f-c-text" name="contact" value="text"> Text message</label></div></fieldset>
+          <label class="check"><input type="checkbox" id="f-optin" name="optin"> <span>I agree to receive news and updates from ${esc(LB.councilName(a))}, the ${esc(b.place)} Traders Association, or related parties (optional). We never sell your details.</span></label>
           <label class="check"><input type="checkbox" id="f-terms" name="terms"> <span>I agree to the terms and the <a href="${App.mainOrigin()}/safety" target="_blank" rel="noopener">safety and privacy page</a>. If you're under 18, a parent or guardian must tick this for you.</span></label>
           <p class="err" id="su-err" role="alert" hidden></p>
-          <p style="margin-top:14px"><button class="btn sun big" type="submit" ${closed ? 'disabled' : ''}>Sign up</button></p>
+          <p><button class="btn big" type="submit" ${closed ? 'disabled' : ''}>Sign up</button></p>
         </form>`);
     }
   };
@@ -82,54 +82,54 @@
 
   // ---------- 2. the coupon page ----------
   const codeBlock = (code) => `<div class="pass"><div class="qr" role="img" aria-label="QR code for ${esc(code)}">${U.qrSvg(code, 5)}</div>
-      <div class="pass-num" style="font-size:64px">${esc(String(code).replace(/^CMS-/, ''))}</div><div class="pass-code">${esc(code)}</div></div>`;
+      <div class="pass-num">${esc(String(code).replace(/^CMS-/, ''))}</div><div class="pass-code">${esc(code)}</div></div>`;
 
   function phoneUse(s, ctx) {
     const ph = ctx.ph || {}, shops = d0.shops().filter((x) => x.area === s.area && x.claimed).slice().sort((a, b) => a.name.localeCompare(b.name));
-    if (ph.done) return `<div class="statecard good" role="status"><h3><span class="dotg g"></span>Done! Take ${money(ph.done.value)} off their bill.</h3><p style="margin:0" class="muted">Used at ${esc(ph.done.shop)}.</p></div>`;
-    if (!ph.step) return `<p style="margin:12px 0 0"><button class="btn ghost" style="width:100%" data-act="lphone-open">Shop: use this coupon</button></p>`;
+    if (ph.done) return `<div class="statecard good" role="status"><h2>Done! Take ${money(ph.done.value)} off their bill</h2><p>Used at ${esc(ph.done.shop)}.</p></div>`;
+    if (!ph.step) return `<p><button class="btn ghost" data-act="lphone-open">Shop: use this coupon</button></p>`;
     if (ph.step === 1) {
       // No shop has signed up yet: say when to check back, instead of an empty list.
       if (!shops.length) {
         const note = (App.brandOf(s.area).shopsNote || '').trim() || 'No shop has set up its account yet. Please ask the staff at the shop to set up.';
-        return `<div class="panel" style="margin-top:12px"><h3>Which shop are you?</h3><p style="margin:0 0 10px">${esc(note)}</p>
+        return `<div class="panel"><h2>Which shop are you?</h2><p>${esc(note)}</p>
           <div class="row"><button class="btn ghost" type="button" data-act="lphone-cancel">Close</button></div></div>`;
       }
-      return `<div class="panel" style="margin-top:12px"><h3>Which shop are you?</h3>
+      return `<div class="panel"><h2>Which shop are you?</h2>
         <form data-form="lphone1"><label for="ph-shop" class="sr">Shop</label><select id="ph-shop" name="shop" required><option value="">Choose your shop…</option>${shops.map((x) => `<option value="${esc(x.id)}" ${ph.shop === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
-        <div class="row" style="margin-top:10px"><button class="btn" type="submit">Next</button><button class="btn ghost" type="button" data-act="lphone-cancel">Cancel</button></div></form></div>`;
+        <div class="row"><button class="btn" type="submit">Next</button><button class="btn ghost" type="button" data-act="lphone-cancel">Cancel</button></div></form></div>`;
     }
     const sh = d0.shop(ph.shop);
-    return `<div class="panel" style="margin-top:12px"><h3>Enter your shop code</h3><p class="muted" style="margin:0 0 6px">${esc(sh ? sh.name : '')}'s 6-digit shop code.</p>
-      <form data-form="lphone2"><label for="ph-code" class="sr">Shop code</label><input id="ph-code" name="code" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••••" style="letter-spacing:.35em;font-size:26px;text-align:center">
+    return `<div class="panel"><h2>Enter your shop code</h2><p>${esc(sh ? sh.name : '')}'s 6-digit shop code</p>
+      <form data-form="lphone2"><label for="ph-code" class="sr">Shop code</label><input id="ph-code" name="code" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••••" class="codefield">
       <p class="err" id="ph-err" role="alert" ${ph.err ? '' : 'hidden'}>${esc(ph.err || '')}</p>
-      <div class="row" style="margin-top:10px"><button class="btn" type="submit" ${ph.saving ? 'disabled' : ''}>${ph.saving ? 'Saving…' : 'Use coupon'}</button><button class="btn ghost" type="button" data-act="lphone-cancel">Cancel</button></div></form></div>`;
+      <div class="row"><button class="btn" type="submit" ${ph.saving ? 'disabled' : ''}>${ph.saving ? 'Saving…' : 'Use coupon'}</button><button class="btn ghost" type="button" data-act="lphone-cancel">Cancel</button></div></form></div>`;
   }
 
   function couponState(s, ctx, b) {
     const p = s.prize, via = s.contact === 'text' ? 'texted' : 'emailed';
     if (!p) {
-      return `<div class="ticket"><h2>You're in, ${esc(s.name)}! Now join the line for the wheel.</h2>
-        <span class="muted">When it's your turn, show this screen to the staff. They'll scan your code.</span></div>${codeBlock(s.code)}`;
+      return `<div class="ticket"><h2>You're in, ${esc(s.name)}!</h2>
+        <p>Now join the line for the wheel. When it's your turn, show this screen to the staff. They'll scan your code.</p></div>${codeBlock(s.code)}`;
     }
     if (Number(p.value) === 0) {
-      return `<div class="win" role="status"><b style="font-size:24px;line-height:1.15;display:block">You won a ${esc(p.name)}!</b><p>Collect it at the desk now.</p>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>${THANKS}`;
+      return `<div class="win" role="status"><h2>You won a ${esc(p.name)}!</h2><p>Collect it at the desk now.</p>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>${THANKS}`;
     }
     if (s.redeemed) {
-      return `<div class="statecard"><h3>Used</h3><p style="margin:0">Used at <b>${esc(d0.shopName(s.redeemed_at))}</b>, ${esc(U.when(s.redeemed_time))}.</p></div>${THANKS}`;
+      return `<div class="statecard"><h2>Used</h2><p>Used at <b>${esc(d0.shopName(s.redeemed_at))}</b>, ${esc(U.when(s.redeemed_time))}.</p></div>${THANKS}`;
     }
     if (s.use_by && s.use_by < U.today()) {
-      return `<div class="statecard bad"><h3>This coupon has run out</h3><p style="margin:0">It ran out on ${esc(U.date(s.use_by))}.</p></div>`;
+      return `<div class="statecard bad"><h2>This coupon has run out</h2><p>It ran out on ${esc(U.date(s.use_by))}.</p></div>`;
     }
     const notYet = !!(s.valid_from && s.valid_from > U.today());
-    return `<div class="win" role="status"><b style="font-size:24px;line-height:1.15;display:block">You won a ${money(p.value)} coupon!</b>
+    return `<div class="win" role="status"><h2>You won a ${money(p.value)} coupon!</h2>
         ${notYet ? `<p><b>You can't use it yet.</b> Use it between <b>${esc(U.date(s.valid_from))}</b> and <b>${esc(U.date(s.use_by))}</b>, at any shop on <b>${esc(b.place)}</b>.</p>` : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`}
         ${p.note ? `<p>${esc(p.note)}</p>` : ''}
-        <p style="font-size:18px;margin-top:10px">Your coupon code:</p><div class="bigcode">${esc(s.code)}</div>
+        <p>Your coupon code</p><div class="bigcode">${esc(s.code)}</div>
         ${notYet ? '' : s.valid_from ? `<p>Use it between <b>${esc(U.date(s.valid_from))}</b> and <b>${esc(U.date(s.use_by))}</b></p>` : `<p>Use it by <b>${esc(U.date(s.use_by))}</b></p>`}
-        <p style="margin-top:12px"><a class="btn" href="/shops">See the shops</a></p>
-        <p style="font-size:14px">We've ${via} it to you.</p></div>
-      <p class="muted" style="font-size:13px;margin:0">One coupon per bill. Used in full: no change or cash back.</p>
+        <p><a class="btn" href="/shops">See the shops</a></p>
+        <p class="small">We've ${via} it to you.</p></div>
+      <p class="small">One coupon per bill. Used in full: no change or cash back.</p>
       ${FRIENDLY('coupon')}
       ${THANKS}
       ${codeBlock(s.code)}
@@ -138,9 +138,9 @@
 
   // A sign-up that is saved on this phone but not sent yet (no signal): show their number now.
   function pendingView(e, b) {
-    return `<div class="ticket"><h2>You're in, ${esc(e.args.p_name)}! Now join the line for the wheel.</h2>
-      <span class="muted">Saved on this phone. We'll finish saving it by itself when you have signal. Keep this page.</span></div>${codeBlock(e.code)}
-      <p class="small muted">If the staff can't find your number yet, ask them to try again in a minute.</p>`;
+    return `<div class="ticket"><h2>You're in, ${esc(e.args.p_name)}!</h2>
+      <p>Saved on this phone. We'll finish saving it by itself when you have signal. Keep this page.</p></div>${codeBlock(e.code)}
+      <p class="small">If the staff can't find your number yet, ask them to try again in a minute.</p>`;
   }
 
   LP.coupon = {
@@ -161,12 +161,12 @@
       const net = D.offline ? '<p class="small muted" role="status">Can\'t reach the system right now. This will update by itself.</p>' : '';
       const local = LB.sq.find(ctx.params.code);
       if (!s && local && local.status === 'pending') return App.custPage(b, pendingView(local, b) + LB.syncBar());
-      if (!s && local && local.status === 'failed') return App.custPage(b, `<div class="statecard bad"><h3>We couldn't save your sign-up</h3><p style="margin:0">${esc(local.error || 'Please ask the staff for help.')}</p></div>`);
+      if (!s && local && local.status === 'failed') return App.custPage(b, `<div class="statecard bad"><h2>We couldn't save your sign-up</h2><p>${esc(local.error || 'Please ask the staff for help.')}</p></div>`);
       if (!s) {
         // A link that has its secret but finds nothing: the sign-up was removed. Say so (and forget it on this phone).
         if (ctx.params.token) {
           if (ls.get('msr-code') === ctx.params.code) { ls.set('msr-code', ''); ls.set('msr-token', ''); }
-          return App.custPage(b, `<div class="statecard bad"><h3>We can't find this coupon</h3><p style="margin:0">It may have been removed. You can sign up again, or ask the staff at the desk.</p></div>
+          return App.custPage(b, `<div class="statecard bad"><h2>We can't find this coupon</h2><p>It may have been removed. You can sign up again, or ask the staff at the desk.</p></div>
             <p><a class="btn big" href="/">Sign up</a></p>`);
         }
         // Someone who signed up twice sees their code, but not the secret link.
@@ -204,8 +204,8 @@
     const list = d0.shops().filter((s) => s.area === area && (!needle || (s.name + ' ' + s.type).toLowerCase().includes(needle)))
       .slice().sort((a, b) => a.name.localeCompare(b.name));
     return list.length
-      ? list.map((s) => `<div class="camp" style="margin:0"><h3>${esc(s.name)}</h3><div class="muted">${esc(s.type)}</div></div>`).join('')
-      : '<p class="muted">No shops match that.</p>';
+      ? list.map((s) => `<div class="shoprow"><b>${esc(s.name)}</b><span>${esc(s.type)}</span></div>`).join('')
+      : '<p>No shops match that.</p>';
   };
   LP.shops = {
     brand: brandFor,
@@ -214,10 +214,10 @@
       const a = areaOf(ctx), mine = ls.get('msr-code');
       const win = LB.windowText(d0.eventsOf(a).slice(-1)[0]);
       return App.custPage(b, `<h2>Spend your coupon at any shop on ${esc(b.place)}</h2>
-        ${win ? `<p class="muted" style="margin:0">${esc(win)}</p>` : ''}
+        ${win ? `<p>${esc(win)}</p>` : ''}
         <label for="shop-q" class="sr">Search shops</label><input id="shop-q" type="search" placeholder="Search shops" data-input="shop-search" autocomplete="off">
         <div id="shoplist" class="grid" style="gap:10px">${shopRows(a, App.state.shopQ)}</div>
-        <p class="muted" style="margin:0"><b>Shop not listed?</b> Every shop on ${esc(b.place)} takes coupons.</p>
+        <p><b>Shop not listed?</b> Every shop on ${esc(b.place)} takes coupons.</p>
         ${FRIENDLY('coupon')}
         ${mine ? `<p><a class="btn ghost" href="/c/${esc(mine)}${ls.get('msr-token') ? '?k=' + esc(ls.get('msr-token')) : ''}">Back to my coupon</a></p>` : ''}`);
     }
@@ -234,24 +234,25 @@
     brand: LB.fb,
     title: () => 'Safety and privacy',
     render() {
-      const sec = (n, h, body) => `<h2 style="margin-top:22px">${n}. ${h}</h2>${body}`;
-      return `${LB.band('Safety and privacy', LB.fb(), [])}<main class="wrap" id="main" style="max-width:820px">
-        <p class="who" style="margin-top:0"><b>${ph('to be checked by a lawyer')}</b></p>
-        <h1 style="font-size:32px;margin:14px 0 6px">Safety and privacy</h1>
-        <p class="muted">The short version: we only collect what we need, we keep it in Australia, we never sell it, and you can ask us to delete it.</p>
-        ${sec(1, 'Who runs it', `<p>My Main Street is built and run by Georgina Fiske, trading as ${esc(C.runBy)}, sole trader, ABN 97 221 925 993, Melbourne. It's delivered with ${esc(C.homeCompany)} for Croydon Main Street.</p>`)}
-        ${sec(2, 'What we collect', `<p>Your first and last name, email and mobile, postcode, your coupon, where and when it was used, and whether you want news. We send you messages through whichever one you choose at sign-up.</p>`)}
-        ${sec(3, 'Why', `<p>To send your coupon, check it at shops, pay shops back, and (only if you say yes) send you news and updates from ${esc('Maroondah City Council')}, the Traders Association, or related parties. ${ph('lawyer to confirm this wording')}</p>`)}
-        ${sec(4, 'Where it\'s stored', `<ul><li>Database: Sydney, Australia (Supabase)</li><li>Website: Netlify</li><li>Emails: Resend</li><li>Texts: ClickSend</li></ul>`)}
-        ${sec(5, 'Who can see it', `<p>${esc(C.runBy)}, ${esc(C.homeCompany)} and the Croydon Main Street Traders Association, for Croydon only. Shops only see a coupon when it's shown to them.</p>`)}
-        ${sec(6, 'We never sell your data', `<p>Never. Not to anyone.</p>`)}
-        ${sec(7, 'How long we keep it', `<p>Until you unsubscribe or ask us to delete it. ${ph('lawyer to confirm this wording')}</p>`)}
-        ${sec(8, 'Your choices', `<p>Unsubscribe from any email, reply STOP to any text, or email hey@chaosmaster.com.au to see or delete your data.</p>`)}
-        ${sec(9, 'How we keep it safe', `<p>A secure connection (HTTPS), staff logins, and each area only sees its own data.</p>`)}
-        ${sec(10, 'Under 18s', `<p>Anyone under 18 needs a parent or guardian's OK to sign up and spin.</p>`)}
-        ${sec(11, 'Coupon terms', `<p>One coupon per bill. Coupons are used in full: no change or cash back. Use it before the use-by date. It can be spent at any participating Croydon Main Street shop.</p>`)}
-        ${sec(12, 'Contact', `<p><a href="mailto:hey@chaosmaster.com.au">hey@chaosmaster.com.au</a></p>`)}
-      </main>${LB.footer()}`;
+      const sec = (h, body) => `<section><h2>${h}</h2>${body}</section>`;
+      const b = Object.assign({}, App.brandOf(C.demoHomeArea), { headline: 'Safety and privacy', place: 'Safety and privacy' });
+      const { style } = App.pubColours(b, 0);
+      return `<div class="pub safety" style="${style}">${App.councilBanner(b, 0)}<div class="body" id="main">
+        <p class="who"><b>${ph('to be checked by a lawyer')}</b></p>
+        <p>We only collect what we need, we keep it in Australia, we never sell it, and you can ask us to delete it.</p>
+        ${sec('Who runs it', `<p>My Main Street is built and run by Georgina Fiske, trading as ${esc(C.runBy)}, sole trader, ABN 97 221 925 993, Melbourne. It's delivered with ${esc(C.homeCompany)} for Croydon Main Street.</p>`)}
+        ${sec('What we collect', `<p>Your first and last name, email and mobile, postcode, your coupon, where and when it was used, and whether you want news. We send you messages through whichever one you choose at sign-up.</p>`)}
+        ${sec('Why', `<p>To send your coupon, check it at shops, pay shops back, and (only if you say yes) send you news and updates from ${esc('Maroondah City Council')}, the Traders Association, or related parties. ${ph('lawyer to confirm this wording')}</p>`)}
+        ${sec('Where it\'s stored', `<ul><li>Database: Sydney, Australia (Supabase)</li><li>Website: Netlify</li><li>Emails: Resend</li><li>Texts: ClickSend</li></ul>`)}
+        ${sec('Who can see it', `<p>${esc(C.runBy)}, ${esc(C.homeCompany)} and the Croydon Main Street Traders Association, for Croydon only. Shops only see a coupon when it's shown to them.</p>`)}
+        ${sec('We never sell your data', `<p>Never. Not to anyone.</p>`)}
+        ${sec('How long we keep it', `<p>Until you unsubscribe or ask us to delete it. ${ph('lawyer to confirm this wording')}</p>`)}
+        ${sec('Your choices', `<p>Unsubscribe from any email, reply STOP to any text, or email hey@chaosmaster.com.au to see or delete your data.</p>`)}
+        ${sec('How we keep it safe', `<p>A secure connection (HTTPS), staff logins, and each area only sees its own data.</p>`)}
+        ${sec('Under 18s', `<p>Anyone under 18 needs a parent or guardian's OK to sign up and spin.</p>`)}
+        ${sec('Coupon terms', `<p>One coupon per bill. Coupons are used in full: no change or cash back. Use it within the dates on your coupon. It can be spent at any participating Croydon Main Street shop.</p>`)}
+        ${sec('Contact', `<p><a href="mailto:hey@chaosmaster.com.au">hey@chaosmaster.com.au</a></p>`)}
+      </div><footer class="pubfoot"><b>${esc(C.siteName)}</b></footer></div>`;
     }
   };
 })();

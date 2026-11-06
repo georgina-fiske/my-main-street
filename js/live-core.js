@@ -146,11 +146,10 @@
       App.render();
     },
     render(ctx) {
-      const r = ctx.result;
-      return `<main class="wrap" id="main" style="max-width:560px;padding-top:40px"><div class="panel">
-        ${!r ? '<p>One moment…</p>' : r.ok ? `<h2>You're unsubscribed</h2><p>We won't send you news and offers. You can still use any coupon you've already won.</p>`
-          : `<h2>That link isn't right</h2><p>${esc(r.error || '')}</p>`}
-        <p><a href="${App.mainOrigin()}/safety">Safety and privacy</a></p></div></main>${LB.footer()}`;
+      const r = ctx.result, b = App.brandOf(C.demoHomeArea);
+      return App.custPage(b, !r ? '<p>One moment…</p>' : r.ok
+        ? `<section><h2>You're unsubscribed</h2><p>We won't send you news and offers. You can still use any coupon you've already won.</p></section>`
+        : `<section><h2>That link isn't right</h2><p>${esc(r.error || '')}</p></section>`);
     }
   };
 
@@ -169,7 +168,7 @@
   LP.notfound = {
     brand: LB.fb,
     title: () => 'Not found',
-    render() { return `${LB.band('Page not found', LB.fb(), [])}<main class="wrap" id="main" style="max-width:600px"><div class="panel"><h2>We can't find that page</h2><p>Check the web address and try again.</p></div></main>${LB.footer()}`; }
+    render() { return App.custPage(App.brandOf(C.demoHomeArea), `<section><h2>We can't find that page</h2><p>Check the web address and try again.</p></section>`); }
   };
 
   App.acts.logout = async () => { await D.signOut(); location.assign('/login'); };

@@ -1,9 +1,9 @@
 // Keeps the app itself on the device, so the page opens again with no signal.
 // Rule: ask the internet first (so a new version always wins). If that fails or is slow, use the copy on the device.
 // It never touches the database or the send-message functions: those are handled by the app's own save-and-send queue.
-const VERSION = 'msr-app-v1';
+const VERSION = 'msr-app-v2';
 const FILES = [
-  '/index.html', '/css/styles.css',
+  '/index.html', '/css/styles.css', '/css/public.css',
   '/vendor/supabase.js', '/vendor/qrcode.js', '/vendor/jsbarcode.min.js', '/vendor/jsqr.js',
   '/js/config.js', '/js/db.js', '/js/util.js', '/js/localdb.js', '/js/messages.js', '/js/ui.js',
   '/js/pages-customer.js', '/js/pages-staff.js', '/js/pages-admin.js', '/js/pages-join.js', '/js/pages-auth.js', '/js/pages-demo.js',
