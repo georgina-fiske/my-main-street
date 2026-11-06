@@ -5,7 +5,7 @@
 
 update areas
 set brand = brand || jsonb_build_object('color', '#006BB6', 'accent', '#FCBF45', 'logo', '',
-  'headline', 'CROYDON IS OPEN FOR BUSINESS', 'palette', jsonb_build_array('#006BB6', '#03AD50', '#F5813B', '#FCBF45'))
+  'headline', 'CROYDON IS OPEN FOR BUSINESS', 'shopsNote', 'Check back on 13 November to see participating stores.', 'palette', jsonb_build_array('#006BB6', '#03AD50', '#F5813B', '#FCBF45'))
 where id = 'croydon';
 
 update prizes set color = '#03AD50' where area = 'croydon' and name = 'Chocolate bar';

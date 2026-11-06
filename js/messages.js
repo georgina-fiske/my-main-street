@@ -12,7 +12,7 @@
   // The standard wording. When coupons start on a later day (hasStart), it says so, and says you can't use it today.
   const defaults = (hasStart) => ({
     sms: hasStart
-      ? 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use it {validFromShort} to {useByShort}, not before. {link} Reply STOP to opt out'
+      ? 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use it between {validFromShort} and {useByShort}, not before. {link} Reply STOP to opt out'
       : 'Thanks for spinning! You won a {value} coupon for any {place} shop. Code: {code}. Use by {useByShort}. {link} Reply STOP to opt out',
     email_subject: "Thanks for spinning the wheel! Here's your coupon code",
     email_body: [
@@ -21,7 +21,7 @@
       '**You won a {value} coupon.**\n**Your coupon code: {code}**',
       '{prizeNote}',
       hasStart
-        ? "**You can't use it today.** It works from **{validFrom}** until **{useBy}**, at any participating shop on {place}. Just show this email or your code at the counter."
+        ? "**You can't use it today.** Use it between **{validFrom}** and **{useBy}**, at any participating shop on {place}. Just show this email or your code at the counter."
         : 'Spend it at any participating shop on {place} by {useBy}. Just show this email or your code at the counter.',
       '[buttons]',
       "We're so excited to bring life back to {place}. Stay tuned: we'll keep you posted as the next part launches.",
@@ -90,15 +90,15 @@
     const vars = Object.assign(valuesOf(d, false), { link });
     const note = String(d.prizeNote || '').replace(/\s+/g, ' ').trim();
     const withNote = !note ? [] : d.hasStart ? [
-      `You won a ${v} coupon! Code ${d.code}. ${note} Use it ${d.validFromShort} to ${d.useByShort}, not before. ${link} Reply STOP to opt out`
+      `You won a ${v} coupon! Code ${d.code}. ${note} Use between ${d.validFromShort} and ${d.useByShort}. ${link} Reply STOP to opt out`
     ] : [
       `You won a ${v} coupon for any ${d.place} shop. Code ${d.code}. ${note} Use by ${d.useByShort}. ${link} Reply STOP to opt out`,
       `You won a ${v} coupon! Code ${d.code}. ${note} Use by ${d.useByShort}. ${link} Reply STOP to opt out`
     ];
     const tries = d.hasStart ? [
       fill(defaults(true).sms, vars, (x) => String(x)),
-      `You won a ${v} coupon! Code ${d.code}. Use it ${d.validFromShort} to ${d.useByShort} (not before). ${link} Reply STOP to opt out`,
-      `${v} coupon, code ${d.code}. Use ${d.validFromShort} to ${d.useByShort}, not before. ${link} STOP to opt out`
+      `You won a ${v} coupon! Code ${d.code}. Use between ${d.validFromShort} and ${d.useByShort}. ${link} Reply STOP to opt out`,
+      `${v} coupon, code ${d.code}. Use ${d.validFromShort}-${d.useByShort}. ${link} STOP to opt out`
     ] : [
       fill(DEFAULTS.sms, vars, (x) => String(x)),
       `You won a ${v} coupon for any ${d.place} shop. Code ${d.code}. Use by ${d.useByShort}. ${link} Reply STOP to opt out`,

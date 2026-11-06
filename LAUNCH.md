@@ -33,6 +33,7 @@ Open `sql/live/03_croydon.sql`. Replace the example shop with the real shop list
 Run these two, each in its own **new query** (they don't wipe anything):
 - `sql/live/04_croydon_look.sql` gives Croydon the Maroondah City Council look: no association logo, the headline CROYDON IS OPEN FOR BUSINESS, and the Council's four colours (blue, green, orange, amber) in mixed flat blocks. Run it again now if you ran an older version.
 - `sql/live/05_lockdown.sql` hides the budget limit from the public.
+- `sql/live/11_shops_note.sql` adds the message customers see in "Which shop are you?" before shops have signed up ("Check back on 13 November to see participating stores."). You can edit it any time in Admin > Key details.
 - `sql/live/10_prize_notes.sql` adds a "message for the customer" box to every prize (Admin > Prizes). It is added to that prize's text, email and coupon page.
 - `sql/live/09_no_reset.sql` makes sure the demo's nightly reset is off and can never run on the live database. It deletes none of your data.
 - `sql/live/08_start_date.sql` adds a "coupons work from" date, and the Admin > Key details page that sets the festival dates and headline in one place.

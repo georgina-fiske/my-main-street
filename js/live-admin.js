@@ -344,6 +344,8 @@
           <label for="kd-head">Headline</label><input id="kd-head" name="headline" value="${esc(b.headline || '')}" maxlength="60" placeholder="CROYDON IS OPEN FOR BUSINESS">
           <p class="muted small" style="margin:4px 0 0">The big words at the top of the sign-up, coupon and shops pages and the email. Empty hides them.</p>
           <label for="kd-welcome">Sign-up page welcome line</label><input id="kd-welcome" name="welcome" value="${esc(b.welcome || '')}" maxlength="120">
+          <label for="kd-shops">Message when no shops have signed up yet</label><input id="kd-shops" name="shopsNote" value="${esc(b.shopsNote || '')}" maxlength="160" placeholder="Check back on 13 November to see participating stores.">
+          <p class="muted small" style="margin:4px 0 0">Shown in the "Which shop are you?" box on a customer's coupon, until a shop has set up its account.</p>
           <h3 style="margin-top:18px">Right now customers read</h3>
           <p class="friendly" style="margin:6px 0"><b>${esc(win || 'No dates set yet.')}</b></p>
           <p class="muted small" style="margin:0">Colours, street name and the logo are in the <a href="${aLink('look')}">Look</a> tab. The wording of the text and email is in <a href="${aLink('messages')}">Messages</a>.</p>
@@ -358,7 +360,7 @@
     const d = Object.fromEntries(new FormData(f)), area = adminArea(App.ctx);
     const r = await LB.save('event_save', { p_id: Number(f.dataset.id), p_name: d.name, p_starts: d.starts, p_use_by: d.use_by, p_valid_from: d.valid_from || null });
     if (!r.ok) return U.toast(r.error, true);
-    const r2 = await LB.save('area_save_brand', { p_id: area, p_brand: { headline: d.headline || '', welcome: d.welcome || '' }, p_email_name: null, p_email_address: null, p_reply_to: null });
+    const r2 = await LB.save('area_save_brand', { p_id: area, p_brand: { headline: d.headline || '', welcome: d.welcome || '', shopsNote: d.shopsNote || '' }, p_email_name: null, p_email_address: null, p_reply_to: null });
     U.toast(r2.ok ? 'Saved. Every page, email and text now uses these.' : r2.error, !r2.ok);
   };
 

@@ -6,7 +6,7 @@
 
   const areaOf = (ctx) => ctx.area || C.demoHomeArea;
   // "Coupons work from Tue 10 Nov until Mon 30 Nov." (read from the event's key details)
-  LB.windowText = (ev) => (!ev || !ev.use_by ? '' : ev.valid_from && ev.valid_from > U.today() ? `Coupons work from ${U.date(ev.valid_from)} until ${U.date(ev.use_by)}.` : `Coupons work until ${U.date(ev.use_by)}.`);
+  LB.windowText = (ev) => (!ev || !ev.use_by ? '' : ev.valid_from ? `Use coupons between ${U.date(ev.valid_from)} and ${U.date(ev.use_by)}.` : `Use coupons by ${U.date(ev.use_by)}.`);
   LB.councilName = (a) => (a && a.council_area ? a.council_area + ' City Council' : 'Council');
   const brandFor = (ctx) => (d0.area(areaOf(ctx)) ? App.brandOf(areaOf(ctx)) : LB.fb());
   const THANKS = `<div class="ticket thanks"><b>Thanks for joining us!</b><br><span class="muted">We're so excited to bring you back to your Main Street.</span></div>`;
@@ -79,8 +79,13 @@
     if (ph.done) return `<div class="statecard good" role="status"><h3><span class="dotg g"></span>Done! Take ${money(ph.done.value)} off their bill.</h3><p style="margin:0" class="muted">Used at ${esc(ph.done.shop)}.</p></div>`;
     if (!ph.step) return `<p style="margin:12px 0 0"><button class="btn ghost" style="width:100%" data-act="lphone-open">Shop: use this coupon</button></p>`;
     if (ph.step === 1) {
+      // No shop has signed up yet: say when to check back, instead of an empty list.
+      if (!shops.length) {
+        const note = (App.brandOf(s.area).shopsNote || '').trim() || 'No shop has set up its account yet. Please ask the staff at the shop to set up.';
+        return `<div class="panel" style="margin-top:12px"><h3>Which shop are you?</h3><p style="margin:0 0 10px">${esc(note)}</p>
+          <div class="row"><button class="btn ghost" type="button" data-act="lphone-cancel">Close</button></div></div>`;
+      }
       return `<div class="panel" style="margin-top:12px"><h3>Which shop are you?</h3>
-        ${shops.length ? '' : '<p class="muted" style="margin:0 0 8px">No shop has set up its account yet. Please ask the staff at the shop to set up, or spend your coupon at a shop that has.</p>'}
         <form data-form="lphone1"><label for="ph-shop" class="sr">Shop</label><select id="ph-shop" name="shop" required><option value="">Choose your shop…</option>${shops.map((x) => `<option value="${esc(x.id)}" ${ph.shop === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
         <div class="row" style="margin-top:10px"><button class="btn" type="submit">Next</button><button class="btn ghost" type="button" data-act="lphone-cancel">Cancel</button></div></form></div>`;
     }
@@ -108,10 +113,10 @@
     }
     const notYet = !!(s.valid_from && s.valid_from > U.today());
     return `<div class="win" role="status"><b style="font-size:24px;line-height:1.15;display:block">You won a ${money(p.value)} coupon!</b>
-        ${notYet ? `<p><b>You can't use it yet.</b> It works from <b>${esc(U.date(s.valid_from))}</b> until <b>${esc(U.date(s.use_by))}</b>, at any shop on <b>${esc(b.place)}</b>.</p>` : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`}
+        ${notYet ? `<p><b>You can't use it yet.</b> Use it between <b>${esc(U.date(s.valid_from))}</b> and <b>${esc(U.date(s.use_by))}</b>, at any shop on <b>${esc(b.place)}</b>.</p>` : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`}
         ${p.note ? `<p>${esc(p.note)}</p>` : ''}
         <p style="font-size:18px;margin-top:10px">Your coupon code:</p><div class="bigcode">${esc(s.code)}</div>
-        ${notYet ? '' : `<p>Use it by <b>${esc(U.date(s.use_by))}</b></p>`}
+        ${notYet ? '' : s.valid_from ? `<p>Use it between <b>${esc(U.date(s.valid_from))}</b> and <b>${esc(U.date(s.use_by))}</b></p>` : `<p>Use it by <b>${esc(U.date(s.use_by))}</b></p>`}
         <p style="margin-top:12px"><a class="btn" href="/shops">See the shops</a></p>
         <p style="font-size:14px">We've ${via} it to you.</p></div>
       <p class="muted" style="font-size:13px;margin:0">One coupon per bill. Used in full: no change or cash back.</p>

@@ -633,6 +633,7 @@ begin
     if p_brand ? k and v <> '' then b := b || jsonb_build_object(k, v); end if;
   end loop;
   if p_brand ? 'headline' then b := b || jsonb_build_object('headline', _clean(p_brand->>'headline', 60)); end if;
+  if p_brand ? 'shopsNote' then b := b || jsonb_build_object('shopsNote', left(btrim(coalesce(p_brand->>'shopsNote', '')), 160)); end if;
   foreach k in array array['color','accent'] loop
     v := p_brand->>k;
     if p_brand ? k then
