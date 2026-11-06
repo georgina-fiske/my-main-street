@@ -6,7 +6,8 @@
 
   const areaOf = (ctx) => ctx.area || C.demoHomeArea;
   // "Coupons work from Tue 10 Nov until Mon 30 Nov." (read from the event's key details)
-  LB.windowText = (ev) => (!ev || !ev.use_by ? '' : ev.valid_from ? `Use coupons between ${U.date(ev.valid_from)} and ${U.date(ev.use_by)}.` : `Use coupons by ${U.date(ev.use_by)}.`);
+  const sd = (iso) => String(U.date(iso)).replace(/^\w+\s+/, '').replace(/\s+/g, ' ').trim();     // "Fri 13 Nov" -> "13 Nov"
+  LB.windowText = (ev) => (!ev || !ev.use_by ? '' : ev.valid_from ? `Use coupons between ${sd(ev.valid_from)} and ${sd(ev.use_by)}.` : `Use coupons by ${sd(ev.use_by)}.`);
   LB.councilName = (a) => (a && a.council_area ? a.council_area + ' City Council' : 'Council');
   const brandFor = (ctx) => (d0.area(areaOf(ctx)) ? App.brandOf(areaOf(ctx)) : LB.fb());
   const THANKS = `<div class="ticket thanks"><h2>Thanks for joining us!</h2><p>We're so excited to bring you back to your Main Street.</p></div>`;
@@ -119,14 +120,14 @@
       return `<div class="statecard"><h2>Used</h2><p>Used at <b>${esc(d0.shopName(s.redeemed_at))}</b>, ${esc(U.when(s.redeemed_time))}.</p></div>${THANKS}`;
     }
     if (s.use_by && s.use_by < U.today()) {
-      return `<div class="statecard bad"><h2>This coupon has run out</h2><p>It ran out on ${esc(U.date(s.use_by))}.</p></div>`;
+      return `<div class="statecard bad"><h2>This coupon has run out</h2><p>It ran out on ${esc(sd(s.use_by))}.</p></div>`;
     }
     const notYet = !!(s.valid_from && s.valid_from > U.today());
     return `<div class="win" role="status"><h2>You won a ${money(p.value)} coupon!</h2>
-        ${notYet ? `<p><b>You can't use it yet.</b> Use it between <b>${esc(U.date(s.valid_from))}</b> and <b>${esc(U.date(s.use_by))}</b>, at any shop on <b>${esc(b.place)}</b>.</p>` : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`}
+        ${notYet ? `<p><b>You can't use it yet.</b> Use it between <b>${esc(sd(s.valid_from))}</b> and <b>${esc(sd(s.use_by))}</b>, at any shop on <b>${esc(b.place)}</b>.</p>` : `<p>Spend it at any shop on <b>${esc(b.place)}</b>.</p>`}
         ${p.note ? `<p>${esc(p.note)}</p>` : ''}
         <p>Your coupon code</p><div class="bigcode">${esc(s.code)}</div>
-        ${notYet ? '' : s.valid_from ? `<p>Use it between <b>${esc(U.date(s.valid_from))}</b> and <b>${esc(U.date(s.use_by))}</b></p>` : `<p>Use it by <b>${esc(U.date(s.use_by))}</b></p>`}
+        ${notYet ? '' : s.valid_from ? `<p>Use it between <b>${esc(sd(s.valid_from))}</b> and <b>${esc(sd(s.use_by))}</b></p>` : `<p>Use it by <b>${esc(sd(s.use_by))}</b></p>`}
         <p><a class="btn" href="/shops">See the shops</a></p>
         <p class="small">We've ${via} it to you.</p></div>
       <p class="small">One coupon per bill. Used in full: no change or cash back.</p>

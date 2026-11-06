@@ -21,8 +21,8 @@
       '**You won a {value} coupon.**\n**Your coupon code: {code}**',
       '{prizeNote}',
       hasStart
-        ? "**You can't use it today.** Use it between **{validFrom}** and **{useBy}**, at any participating shop on {place}. Just show this email or your code at the counter."
-        : 'Spend it at any participating shop on {place} by {useBy}. Just show this email or your code at the counter.',
+        ? "**You can't use it today.** Use it between **{validFromShort}** and **{useByShort}**, at any participating shop on {place}. Just show this email or your code at the counter."
+        : 'Spend it at any participating shop on {place} by {useByShort}. Just show this email or your code at the counter.',
       '[buttons]',
       "We're so excited to bring life back to {place}. Stay tuned: we'll keep you posted as the next part launches.",
       'See you on Main Street!'
