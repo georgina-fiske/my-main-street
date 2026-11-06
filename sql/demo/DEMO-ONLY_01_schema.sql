@@ -1,3 +1,11 @@
+-- ===== STOP: THIS FILE IS FOR THE DEMO ONLY. IT DELETES EVERYTHING. =====
+-- Never run it on the live database. If you do, the check below stops it before anything is deleted.
+do $$ begin
+  if to_regprocedure('public.staff_me()') is not null then
+    raise exception 'STOP. This is the LIVE database (it has the staff logins). This file is for the demo only and would delete everything. Nothing was changed.';
+  end if;
+end $$;
+
 -- My Main Street: demo database (version 2).
 -- Run this whole file once in Supabase > SQL Editor. Press Run.
 -- Safe to run again: it rebuilds everything and reloads the demo data.
@@ -191,6 +199,7 @@ create function reset_demo() returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare ev bigint; pid bigint;
 begin
+  if to_regprocedure('public.staff_me()') is not null then raise exception 'reset_demo is for the demo only and is switched off on the live database.'; end if;
   truncate download_log, bookings, workshops, campaigns, prizes, shop_private, shops,
            signup_private, signups, events, area_private, areas, settings restart identity cascade;
 
